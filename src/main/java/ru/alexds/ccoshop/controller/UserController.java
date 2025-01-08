@@ -3,6 +3,7 @@ package ru.alexds.ccoshop.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.alexds.ccoshop.dto.UserDTO;
 import ru.alexds.ccoshop.entity.User;
 import ru.alexds.ccoshop.service.UserService;
 
@@ -21,28 +22,28 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<User> registerNewUser(@RequestBody User user) {
-        User registeredUser = userService.registerNewUser(user);
+    public ResponseEntity<UserDTO> registerNewUser(@RequestBody UserDTO userDTO) {
+        UserDTO registeredUser = userService.registerNewUser(userDTO);
         return ResponseEntity.ok(registeredUser);
     }
 
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userService.getAllUsers();
+    public ResponseEntity<List<UserDTO>> getAllUsers() {
+        List<UserDTO> users = userService.getAllUsers();
         return ResponseEntity.ok(users);
     }
 
     @GetMapping("/{id}") // Получить пользователя по ID
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        Optional<User> user = userService.getUserById(id);
+    public ResponseEntity<UserDTO> getUserById(@PathVariable Long id) {
+        Optional<UserDTO> user = userService.getUserById(id);
         return user.map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}") // Обновление пользователя
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
-        user.setId(id); // Установить ID из URL
-        User updatedUser = userService.updateUser(user);
+    public ResponseEntity<UserDTO> updateUser(@PathVariable Long id, @RequestBody UserDTO userDTO) {
+        userDTO.setId(id); // Установить ID из URL
+        UserDTO updatedUser = userService.updateUser(userDTO);
         return ResponseEntity.ok(updatedUser);
     }
 

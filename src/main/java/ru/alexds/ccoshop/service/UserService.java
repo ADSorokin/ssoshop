@@ -1,86 +1,76 @@
 package ru.alexds.ccoshop.service;
 
 
-import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import ru.alexds.ccoshop.entity.Role;
+import ru.alexds.ccoshop.dto.UserDTO;
 import ru.alexds.ccoshop.entity.User;
 import ru.alexds.ccoshop.repository.UserRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
-public class UserService implements UserDetailsService {
+public class UserService {
 
-    private final UserRepository userRepository;
+    @Autowired
+    private UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = (User) userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
-
-        return org.springframework.security.core.userdetails.User
-                .withUsername(user.getEmail())
-                .password(user.getPassword())
-                .roles(user.getRole().name())
-                .build();
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
-    @Transactional
-    public User registerNewUser(User user) {
-        // Проверка существования пользователя
-        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
-            throw new RuntimeException("User with this email already exists");
-        }
+    public UserDTO registerNewUser(UserDTO userDTO) {
+        // Преобразование UserDTO в User
+        User user = new User();
+        user.setEmail(userDTO.getEmail());
+        user.setPassword(passwordEncoder.encode(userDTO.getPassword())); // Шифруем пароль
+        user.setRole(userDTO.getRole());
+        user.setActive(true); // Значение по умолчанию
 
-        // Установка роли по умолчанию и кодирование пароля
-        user.setRole(Role.USER);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setActive(true);
-
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        return new UserDTO(savedUser); // Возвращаем DTO
     }
 
-    @Transactional
-    public User createAdmin(User user) {
-        user.setRole(Role.ADMIN);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setActive(true);
-        return userRepository.save(user);
+    public List<UserDTO> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(UserDTO::new)
+                .collect(Collectors.toList());
     }
 
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public Optional<UserDTO> getUserById(Long id) {
+        return userRepository.findById(id)
+                .map(UserDTO::new);
     }
 
-    public Optional<User> getUserById(Long id) {
-        return userRepository.findById(id);
+    // Метод для получения сущности User
+    public Optional<User> getUserEntityById(Long userId) {
+        return userRepository.findById(userId);
     }
 
-    public Optional<User> getUserByEmail(String email) {
-        return userRepository.findByEmail(email);
+    public UserDTO updateUser(UserDTO userDTO) {
+        // Предположим, что можно получить существующего пользователя
+        User user = userRepository.findById(userDTO.getId())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        // Обновляем поля, которые разрешены
+        user.setEmail(userDTO.getEmail());
+        user.setRole(userDTO.getRole());
+        user.setActive(userDTO.isActive());
+
+        User updatedUser = userRepository.save(user);
+        return new UserDTO(updatedUser);
     }
 
-    @Transactional
-    public User updateUser(User user) {
-        return userRepository.save(user);
-    }
-
-    @Transactional
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
     }
 
-    @Transactional
     public void changeUserStatus(Long userId, boolean active) {
         userRepository.findById(userId).ifPresent(user -> {
             user.setActive(active);
@@ -88,11 +78,15 @@ public class UserService implements UserDetailsService {
         });
     }
 
-    @Transactional
     public void changePassword(Long userId, String newPassword) {
         userRepository.findById(userId).ifPresent(user -> {
-            user.setPassword(passwordEncoder.encode(newPassword));
+            user.setPassword(passwordEncoder.encode(newPassword)); // Шифруем новый пароль
             userRepository.save(user);
         });
     }
+
+    private UserDTO convertToDTO(User user) {
+        return new UserDTO(user);
+    }
 }
+

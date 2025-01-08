@@ -17,9 +17,9 @@ import org.apache.mahout.cf.taste.similarity.ItemSimilarity;
 import org.apache.mahout.cf.taste.similarity.UserSimilarity;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import ru.alexds.ccoshop.dto.UserDTO;
 import ru.alexds.ccoshop.entity.Category;
 import ru.alexds.ccoshop.entity.Product;
-import ru.alexds.ccoshop.entity.User;
 import ru.alexds.ccoshop.repository.ProductRepository;
 
 import java.io.File;
@@ -126,11 +126,11 @@ public class RecommendationService {
     public List<Product> getHybridRecommendations(Long userId) {
         // 1. Получаем пользователя
 
-        Optional<User> userOptional = userService.getUserById(userId);
+        Optional<UserDTO> userOptional = userService.getUserById(userId);
         if (userOptional.isEmpty()) {
             return List.of(); // Возвращаем пустой список, если пользователь не найден
         }
-        User user = userOptional.get();
+        UserDTO user = userOptional.get();
 
         // 2. Получаем список ранее приобретенных продуктов пользователя
 
@@ -162,7 +162,7 @@ public class RecommendationService {
     }
 
     // Пример метода для получения предпочтительных категорий пользователя
-    private List<Category> getPreferredCategories(User user, List<Product> purchasedProducts) {
+    private List<Category> getPreferredCategories(UserDTO user, List<Product> purchasedProducts) {
         // Логика для извлечения предпочтительных категорий на основе приобретенных продуктов
         return purchasedProducts.stream()
                 .map(Product::getCategory)

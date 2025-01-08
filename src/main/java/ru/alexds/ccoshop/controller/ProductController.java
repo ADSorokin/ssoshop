@@ -1,5 +1,6 @@
 package ru.alexds.ccoshop.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,7 @@ public class ProductController {
     /**
      * Получение всех продуктов
      */
+    @Tag(name = "Product", description = "Получение всех продуктов")
     @GetMapping
     public ResponseEntity<List<Product>> getAllProducts() {
         List<Product> products = productService.getAllProducts();
@@ -30,6 +32,7 @@ public class ProductController {
     /**
      * Получение продукта по ID
      */
+    @Tag(name = "Product", description = "Получение продукта по ID")
     @GetMapping("/{id}")
     public ResponseEntity<Product> getProductById(@PathVariable Long id) {
         Optional<Product> product = productService.getProductById(id);
@@ -40,6 +43,7 @@ public class ProductController {
     /**
      * Создание нового продукта
      */
+    @Tag(name = "Product", description = "Создание нового продукта")
     @PostMapping
     public ResponseEntity<Product> createProduct(@RequestBody Product product) {
         Product createdProduct = productService.createProduct(product);
@@ -49,6 +53,7 @@ public class ProductController {
     /**
      * Обновление существующего продукта
      */
+    @Tag(name = "Product", description = "Обновление существующего продукта")
     @PutMapping("/{id}")
     public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product product) {
         product.setId(id); // Устанавливаем ID для обновления
@@ -59,6 +64,8 @@ public class ProductController {
     /**
      * Удаление продукта по ID
      */
+
+    @Tag(name = "Product", description = "Удаление продукта по ID")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
@@ -68,6 +75,7 @@ public class ProductController {
     /**
      * Получение популярных продуктов
      */
+    @Tag(name = "Product", description = "Получение популярных продуктов")
     @GetMapping("/popular")
     public ResponseEntity<List<Product>> getPopularProducts() {
         List<Product> popularProducts = productService.getPopularProducts();
@@ -77,6 +85,7 @@ public class ProductController {
     /**
      * Поиск продуктов по имени
      */
+    @Tag(name = "Product", description = "Поиск продуктов по имени")
     @GetMapping("/search")
     public ResponseEntity<List<Product>> searchProducts(@RequestParam String name) {
         List<Product> products = productService.searchProductsByName(name);
@@ -86,6 +95,7 @@ public class ProductController {
     /**
      * Получение продуктов по категории
      */
+    @Tag(name = "Product", description = "Получение продуктов по категории")
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<List<Product>> getProductsByCategory(@PathVariable Long categoryId) {
         List<Product> products = productService.getProductsByCategory(categoryId);
@@ -95,6 +105,7 @@ public class ProductController {
     /**
      * Получение продуктов по цене
      */
+    @Tag(name = "Product", description = "Получение продуктов по цене min?max")
     @GetMapping("/price")
     public ResponseEntity<List<Product>> getProductsByPriceRange(@RequestParam("min") BigDecimal minPrice,
                                                                  @RequestParam("max") BigDecimal maxPrice) {

@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.alexds.ccoshop.dto.CartItemDTO;
 import ru.alexds.ccoshop.entity.CartItem;
 import ru.alexds.ccoshop.entity.Product;
+import ru.alexds.ccoshop.entity.User;
 import ru.alexds.ccoshop.exeption.CartItemNotFoundException;
 import ru.alexds.ccoshop.exeption.InsufficientStockException;
 import ru.alexds.ccoshop.exeption.ProductNotFoundException;
@@ -15,6 +16,9 @@ import ru.alexds.ccoshop.repository.CartItemRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
+
 
 @Service
 @RequiredArgsConstructor
@@ -23,58 +27,64 @@ public class CartService {
 
     private final CartItemRepository cartItemRepository;
     private final ProductService productService;
+    private final UserService userService;
 
     /**
      * Обновление товара в корзине
      */
     @Transactional
-    public CartItem updateCartItem(CartItem cartItem) {
-        log.debug("Updating cart item: {}", cartItem);
+    public CartItemDTO updateCartItem(CartItemDTO cartItemDTO) {
+        log.debug("Updating cart item: {}", cartItemDTO);
 
         // Проверяем существование товара в корзине
-        CartItem existingItem = cartItemRepository.findById(cartItem.getId())
+        CartItem existingItem = cartItemRepository.findById(cartItemDTO.getId())
                 .orElseThrow(() -> new CartItemNotFoundException("Cart item not found"));
 
         // Проверяем наличие товара на складе
-        Product product = productService.getProductById(cartItem.getProduct().getId())
+        Product product = productService.getProductById(cartItemDTO.getProductId())
                 .orElseThrow(() -> new ProductNotFoundException("Product not found"));
 
-        if (product.getStockQuantity() < cartItem.getQuantity()) {
+        if (product.getStockQuantity() < cartItemDTO.getQuantity()) {
             throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
         }
 
         // Обновляем данные существующего товара
-        existingItem.setQuantity(cartItem.getQuantity());
-        existingItem.setTotalPrice(calculateTotalPrice(product.getPrice(), cartItem.getQuantity()));
+        existingItem.setQuantity(cartItemDTO.getQuantity());
+        existingItem.setTotalPrice(calculateTotalPrice(product.getPrice(), cartItemDTO.getQuantity()));
 
         // Сохраняем обновленный товар
-        return cartItemRepository.save(existingItem);
+        CartItem savedItem = cartItemRepository.save(existingItem);
+        return new CartItemDTO(savedItem);
     }
 
     /**
      * Добавление товара в корзину
      */
     @Transactional
-    public CartItem addCartItem(CartItem cartItem) {
-        log.debug("Adding cart item: {}", cartItem);
+    public CartItemDTO addCartItem(CartItemDTO cartItemDTO) {
+        log.debug("Adding cart item: {}", cartItemDTO);
+
+        // Получаем пользователя
+        User user = userService.getUserEntityById(cartItemDTO.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
         // Проверяем существование продукта
-        Product product = productService.getProductById(cartItem.getProduct().getId())
+        Product product = productService.getProductById(cartItemDTO.getProductId())
                 .orElseThrow(() -> new ProductNotFoundException("Product not found"));
 
         // Проверяем наличие достаточного количества товара на складе
-        if (product.getStockQuantity() < cartItem.getQuantity()) {
+        if (product.getStockQuantity() < cartItemDTO.getQuantity()) {
             throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
         }
 
         // Проверяем, есть ли уже такой товар в корзине у пользователя
         Optional<CartItem> existingItem = cartItemRepository
-                .findByUserIdAndProductId(cartItem.getUser().getId(), product.getId());
+                .findByUserIdAndProductId(cartItemDTO.getUserId(), product.getId());
 
         if (existingItem.isPresent()) {
             // Если товар уже есть в корзине, обновляем количество
             CartItem existing = existingItem.get();
-            int newQuantity = existing.getQuantity() + cartItem.getQuantity();
+            int newQuantity = existing.getQuantity() + cartItemDTO.getQuantity();
 
             // Проверяем достаточно ли товара на складе для общего количества
             if (product.getStockQuantity() < newQuantity) {
@@ -83,36 +93,31 @@ public class CartService {
 
             existing.setQuantity(newQuantity);
             existing.setTotalPrice(calculateTotalPrice(product.getPrice(), newQuantity));
-            return cartItemRepository.save(existing);
+            return new CartItemDTO(cartItemRepository.save(existing));
         } else {
             // Создаем новый элемент корзины
-            cartItem.setTotalPrice(calculateTotalPrice(product.getPrice(), cartItem.getQuantity()));
-            return cartItemRepository.save(cartItem);
+            CartItem cartItem = new CartItem();
+            cartItem.setUser(user);
+            cartItem.setProduct(product);
+            cartItem.setQuantity(cartItemDTO.getQuantity());
+            cartItem.setTotalPrice(calculateTotalPrice(product.getPrice(), cartItemDTO.getQuantity()));
+            return new CartItemDTO(cartItemRepository.save(cartItem));
         }
-    }
-
-    /**
-     * Вспомогательный метод для расчета общей стоимости
-     */
-    private BigDecimal calculateTotalPrice(BigDecimal price, int quantity) {
-        return price.multiply(BigDecimal.valueOf(quantity));
     }
 
     /**
      * Получение всех товаров в корзине пользователя
      */
-    public List<CartItem> getCartItemsByUserId(Long userId) {
+    public List<CartItemDTO> getCartItemsByUserId(Long userId) {
         log.debug("Retrieving cart items for user ID: {}", userId);
+        return cartItemRepository.findByUserId(userId).stream()
+                .map(CartItemDTO::new)
+                .collect(Collectors.toList());
+    }
 
-        // Получаем все предметы корзины по идентификатору пользователя
-        List<CartItem> cartItems = cartItemRepository.findByUserId(userId);
-
-        // Дополнительная обработка (например, можно получить связанные данные о продукте, если это нужно)
-        // cartItems.forEach(item -> {
-        //     // Пример: Запрос информации о продукте или что-то еще
-        // });
-
-        return cartItems;
+    public List<CartItem> getCartItemEntityByUserId(Long userId) {
+        log.debug("Retrieving cart items for user ID: {}", userId);
+        return cartItemRepository.findByUserId(userId);
     }
 
     /**
@@ -122,7 +127,6 @@ public class CartService {
     public void removeCartItem(Long id) {
         log.debug("Removing cart item with ID: {}", id);
 
-        // Проверяем существование товара в корзине
         CartItem cartItem = cartItemRepository.findById(id)
                 .orElseThrow(() -> new CartItemNotFoundException("Cart item not found with id: " + id));
 
@@ -143,7 +147,6 @@ public class CartService {
         log.debug("Clearing cart for user ID: {}", userId);
 
         try {
-            // Проверяем существование товаров в корзине пользователя
             List<CartItem> userCart = cartItemRepository.findByUserId(userId);
 
             if (userCart.isEmpty()) {
@@ -157,6 +160,13 @@ public class CartService {
             log.error("Error clearing cart for user ID: {}", userId, e);
             throw new RuntimeException("Failed to clear cart", e);
         }
+    }
+
+    /**
+     * Вспомогательный метод для расчета общей стоимости
+     */
+    private BigDecimal calculateTotalPrice(BigDecimal price, int quantity) {
+        return price.multiply(BigDecimal.valueOf(quantity));
     }
 }
 

@@ -1,6 +1,6 @@
 package ru.alexds.ccoshop.dto;
 
-import jakarta.persistence.metamodel.IdentifiableType;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,13 +17,15 @@ public class CartItemDTO {
     private Integer quantity;
     private BigDecimal totalPrice;
 
+    private Long userId;
+
+
     public CartItemDTO(CartItem cartItem) {
         this.id = cartItem.getId();
         this.productId = cartItem.getProduct().getId();
         this.quantity = cartItem.getQuantity();
         this.totalPrice = cartItem.getTotalPrice();
     }
-
 
 
 
