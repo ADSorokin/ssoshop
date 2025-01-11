@@ -46,8 +46,8 @@ public class CartController {
     @PostMapping
     public ResponseEntity<CartItemDTO> addToCart(@Valid @RequestBody CartItemDTO cartItemDTO) {
         log.debug("Request to add item to cart: {}", cartItemDTO);
-        CartItemDTO addedItem = cartService.addCartItem(cartItemDTO);
-        return new ResponseEntity<>(addedItem, HttpStatus.CREATED);
+        CartItemDTO addedItemDTO = cartService.addCartItem(cartItemDTO);
+        return new ResponseEntity<>(addedItemDTO, HttpStatus.CREATED);
     }
 
     /**

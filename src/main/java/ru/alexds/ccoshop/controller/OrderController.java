@@ -5,8 +5,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.alexds.ccoshop.dto.OrderDTO;
+import ru.alexds.ccoshop.dto.OrderItemDTO;
 import ru.alexds.ccoshop.entity.Order;
 import ru.alexds.ccoshop.entity.Status;
+import ru.alexds.ccoshop.service.OrderItemService;
 import ru.alexds.ccoshop.service.OrderService;
 
 import java.util.List;
@@ -18,6 +20,7 @@ import java.util.Optional;
 public class OrderController {
 
     private final OrderService orderService;
+    private final OrderItemService orderItemService;
 
     /**
      * Создать заказ на основе корзины пользователя
@@ -74,4 +77,14 @@ public class OrderController {
         orderService.deleteOrder(orderId);
         return ResponseEntity.noContent().build();
     }
-}
+
+
+        /**
+         * Получить все элементы заказа по идентификатору заказа.
+         */
+        @GetMapping("/{orderId}/items")
+        public ResponseEntity<List<OrderItemDTO>> getOrderItems(@PathVariable Long orderId) {
+            List<OrderItemDTO> orderItems = orderItemService.getOrderItemsByOrderId(orderId);
+            return ResponseEntity.ok(orderItems);
+        }
+ }
