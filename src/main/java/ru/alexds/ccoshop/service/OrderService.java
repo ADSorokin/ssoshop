@@ -77,7 +77,7 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         // Получение продукта
-        Product product = productService.getProductById(productId)
+        Product product = productService.getProductEntityById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
         // Проверка наличия на складе
@@ -106,7 +106,7 @@ public class OrderService {
 
         // Обновление количества товара на складе
         product.setStockQuantity(product.getStockQuantity() - quantity);
-        productService.updateProduct(product);
+        productService.updateProduct(productService.convertToDTO(product));
 
         // Сохранение заказа, включая элементы заказа
         Order savedOrder = orderRepository.save(order);
@@ -187,7 +187,7 @@ public class OrderService {
                     product.getStockQuantity() + orderItem.getQuantity()
             );
             // Обновляем информацию о продукте
-            productService.updateProduct(product);
+            productService.updateProduct(productService.convertToDTO(product));
         }
 
         // Устанавливаем статус заказа как отмененный
@@ -417,7 +417,7 @@ public class OrderService {
         // Создаем и добавляем элементы заказа
         cartItems.forEach(cartItem -> {
             // Проверяем наличие продукта
-            Product product = productService.getProductById(cartItem.getProductId())
+            Product product = productService.getProductEntityById(cartItem.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + cartItem.getProductId()));
 
             // Проверяем количество на складе
@@ -427,7 +427,7 @@ public class OrderService {
 
             // Уменьшаем количество на складе
             product.setStockQuantity(product.getStockQuantity() - cartItem.getQuantity());
-            productService.updateProduct(product);
+            productService.updateProduct(productService.convertToDTO(product));
 
             // Создаем OrderItem и устанавливаем двустороннюю связь
             OrderItem orderItem = OrderItem.builder()

@@ -1,102 +1,171 @@
 package ru.alexds.ccoshop.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.apache.commons.lang.StringUtils;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.alexds.ccoshop.dto.ProductDTO;
+import ru.alexds.ccoshop.entity.Category;
 import ru.alexds.ccoshop.entity.Product;
+import ru.alexds.ccoshop.repository.CategoryRepository;
 import ru.alexds.ccoshop.repository.ProductRepository;
 
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
 
-    /**
-     * Получение всех продуктов
-     */
-    public List<Product> getAllProducts() {
-        return productRepository.findAll();
+    private static final int POPULAR_PRODUCTS_LIMIT = 5;
+
+
+    public List<ProductDTO> getAllProducts() {
+        return productRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
-    /**
-     * Получение продукта по ID
-     */
-    public Optional<Product> getProductById(Long productId) {
-        return productRepository.findById(productId);
+    public Optional<ProductDTO> getProductById(Long id) {
+        return productRepository.findById(id)
+                .map(this::convertToDTO);
     }
 
-    /**
-     * Создание нового продукта
-     */
-    @Transactional
-    public Product createProduct(Product product) {
-        return productRepository.save(product);
+    public Optional<Product> getProductEntityById(Long id) {
+        return productRepository.findById(id);
+
     }
 
-    /**
-     * Обновление существующего продукта
-     */
-    @Transactional
-    public Product updateProduct(Product product) {
-        // Проверяем, существует ли продукт
-        if (!productRepository.existsById(product.getId())) {
-            throw new RuntimeException("Product not found");
-        }
-        return productRepository.save(product);
+    public ProductDTO createProduct(ProductDTO productDTO) {
+        Product product = convertToEntity(productDTO);
+        Product createdProduct = productRepository.save(product);
+        return convertToDTO(createdProduct);
     }
 
-    /**
-     * Удаление продукта по ID
-     */
-    @Transactional
-    public void deleteProduct(Long productId) {
-        if (!productRepository.existsById(productId)) {
-            throw new RuntimeException("Product not found");
-        }
-        productRepository.deleteById(productId);
+    public ProductDTO updateProduct(ProductDTO productDTO) {
+        Product product = convertToEntity(productDTO);
+        Product updatedProduct = productRepository.save(product);
+        return convertToDTO(updatedProduct);
+    }
+
+    // Другие методы...
+
+    ProductDTO convertToDTO(Product product) {
+        return ProductDTO.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .description(product.getDescription())
+                .price(product.getPrice())
+                .stockQuantity(product.getStockQuantity())
+                .categoryId(product.getCategory().getId()) // если необходимо
+                .build();
+    }
+
+    private Product convertToEntity(ProductDTO productDTO) {
+        return Product.builder()
+                .id(productDTO.getId())
+                .name(productDTO.getName())
+                .description(productDTO.getDescription())
+                .price(productDTO.getPrice())
+                .stockQuantity(productDTO.getStockQuantity())
+                .category(new Category(productDTO.getCategoryId())) // если необходимо
+                .build();
     }
 
     /**
      * Получение популярных продуктов
      */
-    public List<Product> getPopularProducts() {
-        // Логика для получения популярных продуктов может зависеть от ваших требований,
-        // например, на основе количества заказов или средней оценки.
-        return productRepository.findTop10ByOrderByPopularityDesc(); // Пример, зависит от вашей реализации
+    public List<ProductDTO> getPopularProducts() {
+        return productRepository.findAllByOrderByPopularityDescCreatedAtDesc(PageRequest.of(0, POPULAR_PRODUCTS_LIMIT))
+                .stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Получение продуктов в заданном ценовом диапазоне
+     */
+    public List<ProductDTO> getProductsByPriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
+        if (minPrice == null && maxPrice == null) {
+            return getAllProducts();
+        }
+
+        minPrice = minPrice != null ? minPrice : BigDecimal.ZERO;
+        maxPrice = maxPrice != null ? maxPrice : BigDecimal.valueOf(Double.MAX_VALUE);
+
+        return productRepository.findByPriceBetweenOrderByPriceAsc(minPrice, maxPrice)
+                .stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
     /**
      * Получение продуктов по категории
      */
-    public List<Product> getProductsByCategory(Long categoryId) {
-        return productRepository.findByCategoryId(categoryId);
-    }
+    public List<ProductDTO> getProductsByCategory(Long categoryId) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
 
-    /**
-     * Получение всех продуктов с пагинацией
-     */
-    public Page<Product> getPaginatedProducts(Pageable pageable) {
-        return productRepository.findAll(pageable);
+        return productRepository.findByCategoryOrderByCreatedAtDesc(category)
+                .stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
     /**
      * Поиск продуктов по имени
      */
-    public List<Product> searchProductsByName(String name) {
-        return productRepository.findByNameContainingIgnoreCase(name);
+    public List<ProductDTO> searchProductsByName(String name) {
+        if (StringUtils.isBlank(name)) {
+            return Collections.emptyList();
+        }
+
+        return productRepository.findByNameContainingIgnoreCaseOrderByPopularityDesc(name)
+                .stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
     /**
-     * Получение продуктов по цене
+     * Удаление продукта
      */
-    public List<Product> getProductsByPriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
-        return productRepository.findByPriceBetween(minPrice, maxPrice);
+    @Transactional
+    public void deleteProduct(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
+
+        // Проверка связанных заказов или других зависимостей
+        if (hasActiveOrders(product)) {
+            throw new BusinessException("Cannot delete product with active orders");
+        }
+
+        productRepository.delete(product);
+    }
+
+
+
+    private boolean hasActiveOrders(Product product) {
+        // Реализация проверки активных заказов
+        return false; // Заглушка, требуется реальная имплементация
+    }
+
+    public class ResourceNotFoundException extends RuntimeException {
+        public ResourceNotFoundException(String message) {
+            super(message);
+        }
+    }
+
+    public class BusinessException extends RuntimeException {
+        public BusinessException(String message) {
+            super(message);
+        }
     }
 }

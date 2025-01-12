@@ -4,6 +4,7 @@ package ru.alexds.ccoshop.entity;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotEmpty;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -14,6 +15,7 @@ import java.util.List;
 @Table(name = "categories")
 @Data // Генерирует геттеры, сеттеры и другие методы, такие как toString, equals и hashCode
 @NoArgsConstructor // Генерирует пустой конструктор
+@AllArgsConstructor
 public class Category {
 
     @Id
@@ -29,6 +31,10 @@ public class Category {
     // Конструктор для создания категории
     public Category(String name) {
         this.name = name;
+    }
+
+    public Category(Long id) {
+        this.id = id;
     }
 
     // Метод для добавления продукта в категорию

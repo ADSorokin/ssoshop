@@ -2,6 +2,9 @@ package ru.alexds.ccoshop.service;
 
 
 import jakarta.annotation.PostConstruct;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.apache.mahout.cf.taste.common.TasteException;
 import org.apache.mahout.cf.taste.impl.model.file.FileDataModel;
@@ -17,6 +20,7 @@ import org.apache.mahout.cf.taste.similarity.ItemSimilarity;
 import org.apache.mahout.cf.taste.similarity.UserSimilarity;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import ru.alexds.ccoshop.dto.ProductDTO;
 import ru.alexds.ccoshop.dto.UserDTO;
 import ru.alexds.ccoshop.entity.Category;
 import ru.alexds.ccoshop.entity.Product;
@@ -25,21 +29,50 @@ import ru.alexds.ccoshop.repository.ProductRepository;
 import java.io.File;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class RecommendationService {
-
     private final ProductRepository productRepository;
-    private DataModel dataModel; // DataModel от Mahout
+    private final UserService userService;
+    private final OrderService orderService;
+    private final ProductService productService;
 
-    private UserService userService;
+    private DataModel dataModel;
+    private final List<ARTCluster> artClusters = new ArrayList<>();
+    private static final double VIGILANCE_PARAMETER = 0.8;
 
-    private OrderService orderService;
+    @Data
+    @AllArgsConstructor
+    private static class ARTCluster {
+        private double[] weights;
+        private List<Long> userIds;
 
-    private ProductService productService;
+        public ARTCluster(double[] weights) {
+            this.weights = weights;
+            this.userIds = new ArrayList<>();
+        }
+
+        public double match(double[] input) {
+            double dotProduct = 0;
+            double inputMagnitude = 0;
+            for (int i = 0; i < input.length; i++) {
+                dotProduct += input[i] * weights[i];
+                inputMagnitude += input[i] * input[i];
+            }
+            return inputMagnitude == 0 ? 0 : dotProduct / Math.sqrt(inputMagnitude);
+        }
+
+        public void adapt(double[] input, double learningRate) {
+            for (int i = 0; i < weights.length; i++) {
+                weights[i] = weights[i] + learningRate * (input[i] - weights[i]);
+            }
+        }
+    }
 
     @PostConstruct
     public void init() throws Exception {
@@ -47,127 +80,151 @@ public class RecommendationService {
     }
 
     /**
-     * Генерация User-Based рекомендаций с кэшированием.
+     * DTO для рекомендаций
+     */
+    @Data
+    @Builder
+    public static class RecommendationDTO {
+        private Long productId;
+        private String productName;
+        private BigDecimal price;
+        private Double score;
+    }
+
+    /**
+     * Генерация User-Based рекомендаций с кэшированием
      */
     @Cacheable(value = "user_recommendations", key = "#userId + '_' + #minPrice + '_' + #maxPrice")
-    public List<Product> getUserBasedRecommendations(Long userId, int numRecommendations, Double minPrice, Double maxPrice) throws TasteException {
+    public List<RecommendationDTO> getUserBasedRecommendations(Long userId, int numRecommendations,
+                                                               Double minPrice, Double maxPrice) throws TasteException {
         UserSimilarity similarity = new PearsonCorrelationSimilarity(dataModel);
         UserNeighborhood neighborhood = new NearestNUserNeighborhood(5, similarity, dataModel);
         GenericUserBasedRecommender recommender = new GenericUserBasedRecommender(dataModel, neighborhood, similarity);
         List<RecommendedItem> recommendations = recommender.recommend(userId, numRecommendations);
 
-        List<Product> products = mapRecommendationsToProducts(recommendations);
-        return filterRecommendations(products, minPrice, maxPrice);
+        return mapRecommendationsToDTO(recommendations, minPrice, maxPrice);
     }
 
     /**
-     * Генерация Item-Based рекомендаций с кэшированием.
+     * Генерация Item-Based рекомендаций с кэшированием
      */
     @Cacheable(value = "item_recommendations", key = "#productId")
-    public List<Product> getItemBasedRecommendations(Long productId, int numRecommendations) throws TasteException {
+    public List<RecommendationDTO> getItemBasedRecommendations(Long productId, int numRecommendations)
+            throws TasteException {
         ItemSimilarity itemSimilarity = new TanimotoCoefficientSimilarity(dataModel);
         GenericItemBasedRecommender recommender = new GenericItemBasedRecommender(dataModel, itemSimilarity);
         List<RecommendedItem> recommendations = recommender.mostSimilarItems(productId, numRecommendations);
-        return mapRecommendationsToProducts(recommendations);
+        return mapRecommendationsToDTO(recommendations, null, null);
     }
 
     /**
-     * Фильтрация продуктов по цене.
-     * @param products список продуктов
-     * @param minPrice минимальная цена (может быть null)
-     * @param maxPrice максимальная цена (может быть null)
-     * @return отфильтрованный список продуктов
+     * ART1 обучение и рекомендации
      */
-    private List<Product> filterRecommendations(List<Product> products, Double minPrice, Double maxPrice) {
-        if (products == null || products.isEmpty()) {
-            return products;
+    public List<RecommendationDTO> getARTRecommendations(Long userId) {
+        double[] userVector = createUserVector(userId);
+        ARTCluster bestCluster = findBestCluster(userVector);
+
+        if (bestCluster == null) {
+            bestCluster = new ARTCluster(userVector);
+            artClusters.add(bestCluster);
+        } else {
+            bestCluster.adapt(userVector, 0.2);
         }
+        bestCluster.getUserIds().add(userId);
 
-        return products.stream()
-                .filter(product -> product.getPrice() != null &&
-                        isPriceInRange(product.getPrice(), minPrice, maxPrice))
-                .toList();
+        return generateRecommendationsFromCluster(bestCluster);
     }
 
     /**
-     * Проверяет, находится ли цена в заданном диапазоне
+     * Получить гибридные рекомендации
      */
-    private boolean isPriceInRange(BigDecimal price, Double minPrice, Double maxPrice) {
-        if (price == null) {
-            return false;
-        }
-
-        boolean isAboveMinPrice = minPrice == null ||
-                price.compareTo(BigDecimal.valueOf(minPrice)) >= 0;
-        boolean isBelowMaxPrice = maxPrice == null ||
-                price.compareTo(BigDecimal.valueOf(maxPrice)) <= 0;
-
-        return isAboveMinPrice && isBelowMaxPrice;
-    }
-
-    /**
-     * Преобразование результатов Mahout в список объектов Product.
-     */
-    private List<Product> mapRecommendationsToProducts(List<RecommendedItem> recommendations) {
-        List<Product> products = new ArrayList<>();
-        for (RecommendedItem recommendation : recommendations) {
-            productRepository.findById(recommendation.getItemID())
-                    .ifPresent(products::add);
-        }
-        return products;
-    }
-
-    /**
-     * Получить гибридные рекомендации продуктов для пользователя.
-     *
-     * @param userId идентификатор пользователя
-     * @return список рекомендованных продуктов
-     */
-    public List<Product> getHybridRecommendations(Long userId) {
-        // 1. Получаем пользователя
-
+    public List<RecommendationDTO> getHybridRecommendations(Long userId) {
         Optional<UserDTO> userOptional = userService.getUserById(userId);
         if (userOptional.isEmpty()) {
-            return List.of(); // Возвращаем пустой список, если пользователь не найден
-        }
-        UserDTO user = userOptional.get();
-
-        // 2. Получаем список ранее приобретенных продуктов пользователя
-
-        List<Product> purchasedProducts = orderService.getPurchasedProducts(userId);
-
-        // 3. Если у пользователя нет приобретенных продуктов, можно возвращать популярных продуктов
-
-        if (purchasedProducts.isEmpty()) {
-            return productService.getPopularProducts(); // Метод для получения популярных продуктов
+            return Collections.emptyList();
         }
 
-        // 4. Извлекаем предпочтенные категории или другие параметры
-        List<Category> preferredCategories = getPreferredCategories(user, purchasedProducts);
+        // Пробуем получить рекомендации через ART
+        List<RecommendationDTO> artRecommendations = getARTRecommendations(userId);
+        if (!artRecommendations.isEmpty()) {
+            return artRecommendations;
+        }
 
-        // 5. Фильтруем продукты на основе предпочтений
-        List<Product> recommendedProducts = productService.getAllProducts();
-
-        // 6. Применяем фильтрацию на основе категории, цены и других критериев
-        // (например, показываем только те продукты, которые принадлежат к предпочтительным категориям)
-        recommendedProducts = recommendedProducts.stream()
-                .filter(product -> preferredCategories.contains(product.getCategory()))
-                .toList();
-
-        // 7. Возможно, сортируем результаты для улучшения качества рекомендаций
-        recommendedProducts.sort((p1, p2) ->
-                p1.getPopularity().compareTo(p2.getPopularity())); // Пример сортировки по популярности
-
-        return recommendedProducts;
+        // Fallback на обычные рекомендации
+        try {
+            return getUserBasedRecommendations(userId, 3, null, null);
+        } catch (TasteException e) {
+            return productService.getPopularProducts().stream()
+                    .map(this::convertToRecommendationDTO)
+                    .collect(Collectors.toList());
+        }
     }
 
-    // Пример метода для получения предпочтительных категорий пользователя
-    private List<Category> getPreferredCategories(UserDTO user, List<Product> purchasedProducts) {
-        // Логика для извлечения предпочтительных категорий на основе приобретенных продуктов
-        return purchasedProducts.stream()
-                .map(Product::getCategory)
-                .distinct()
-                .toList();
+    // Вспомогательные методы
+    private List<RecommendationDTO> mapRecommendationsToDTO(List<RecommendedItem> recommendations,
+                                                            Double minPrice, Double maxPrice) {
+        return recommendations.stream()
+                .map(rec -> productRepository.findById(rec.getItemID())
+                        .map(product -> RecommendationDTO.builder()
+                                .productId(product.getId())
+                                .productName(product.getName())
+                                .price(product.getPrice())
+                                .score((double) rec.getValue())
+                                .build()))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .filter(dto -> isPriceInRange(dto.getPrice(), minPrice, maxPrice))
+                .collect(Collectors.toList());
+    }
+
+    private boolean isPriceInRange(BigDecimal price, Double minPrice, Double maxPrice) {
+        if (price == null) return false;
+        boolean isAboveMin = minPrice == null || price.compareTo(BigDecimal.valueOf(minPrice)) >= 0;
+        boolean isBelowMax = maxPrice == null || price.compareTo(BigDecimal.valueOf(maxPrice)) <= 0;
+        return isAboveMin && isBelowMax;
+    }
+
+    private double[] createUserVector(Long userId) {
+        List<Product> purchasedProducts = orderService.getPurchasedProducts(userId);
+        int vectorSize = (int) productRepository.count();
+        double[] vector = new double[vectorSize];
+
+        for (Product product : purchasedProducts) {
+            vector[product.getId().intValue() - 1] = 1.0;
+        }
+        return vector;
+    }
+
+    private ARTCluster findBestCluster(double[] userVector) {
+        return artClusters.stream()
+                .filter(cluster -> cluster.match(userVector) >= VIGILANCE_PARAMETER)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private List<RecommendationDTO> generateRecommendationsFromCluster(ARTCluster cluster) {
+        List<Product> clusterProducts = productRepository.findAll().stream()
+                .filter(product -> cluster.getWeights()[product.getId().intValue() - 1] > 0.5)
+                .collect(Collectors.toList());
+
+        return clusterProducts.stream()
+                .map(this::convertToRecommendationDTO)
+                .collect(Collectors.toList());
+    }
+
+    private RecommendationDTO convertToRecommendationDTO(Product product) {
+        return RecommendationDTO.builder()
+                .productId(product.getId())
+                .productName(product.getName())
+                .price(product.getPrice())
+                .build();
+    }
+
+    private RecommendationDTO convertToRecommendationDTO(ProductDTO productDTO) {
+        return RecommendationDTO.builder()
+                .productId(productDTO.getId())
+                .productName(productDTO.getName())
+                .price(productDTO.getPrice())
+                .build();
     }
 }
-

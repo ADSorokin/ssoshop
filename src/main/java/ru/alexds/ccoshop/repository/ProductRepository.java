@@ -1,9 +1,13 @@
 package ru.alexds.ccoshop.repository;
 
+import aj.org.objectweb.asm.commons.Remapper;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import ru.alexds.ccoshop.entity.Category;
 import ru.alexds.ccoshop.entity.Product;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,5 +24,15 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findByPriceBetween(BigDecimal minPrice, BigDecimal maxPrice);
 
     List<Product> findTop10ByOrderByPopularityDesc(); // Пример метода получения популярных продуктов
+
+    List<Product> findByPriceBetweenOrderByPriceAsc(BigDecimal minPrice, BigDecimal maxPrice);
+
+    List<Product> findByCategoryOrderByCreatedAtDesc(Category category);
+
+    List<Product> findByNameContainingIgnoreCaseOrderByPopularityDesc(String name);
+
+    List<Product> findAllByOrderByPopularityDescCreatedAtDesc(PageRequest of);
+
+    Remapper findEntityById(Long id);
 }
 

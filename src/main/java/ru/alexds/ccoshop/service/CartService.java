@@ -221,7 +221,7 @@ public class CartService {
         CartItem existingItem = cartItemRepository.findById(cartItemDTO.getId()).orElseThrow(() -> new CartItemNotFoundException("Cart item not found"));
 
         // Проверяем наличие товара на складе
-        Product product = productService.getProductById(cartItemDTO.getProductId()).orElseThrow(() -> new ProductNotFoundException("Product not found"));
+        Product product = productService.getProductEntityById(cartItemDTO.getProductId()).orElseThrow(() -> new ProductNotFoundException("Product not found"));
 
         if (product.getStockQuantity() < cartItemDTO.getQuantity()) {
             throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
@@ -239,7 +239,7 @@ public class CartService {
     @Transactional
     public CartItemDTO addCartItem(CartItemDTO cartItemDTO) {
         // Проверка существования продукта
-        Product product = productService.getProductById(cartItemDTO.getProductId())
+        Product product = productService.getProductEntityById(cartItemDTO.getProductId())
                 .orElseThrow(() -> new RuntimeException("Product not found: " + cartItemDTO.getProductId()));
 
         // Проверяем существование элемента в корзине
