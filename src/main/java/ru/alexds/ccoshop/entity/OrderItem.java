@@ -1,5 +1,6 @@
 package ru.alexds.ccoshop.entity;
 
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,28 +17,33 @@ import java.math.BigDecimal;
 @Builder
 public class OrderItem {
 
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // Уникальный идентификатор OrderItem
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
-    private Order order; // Ссылка на заказ, которому принадлежит этот элемент
+    private Order order;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
-    private Product product; // Ссылка на продукт, который был заказан
+    private Product product;
 
     @Column(nullable = false)
-    private Integer quantity; // Количество заказанного товара
+    private Integer quantity;
 
     @Column(nullable = false)
-    private BigDecimal price; // Цена за единицу товара на момент заказа
+    private BigDecimal price;
 
-    /**
-     * Метод для вычисления общей стоимости элемента заказа
-     */
-    public BigDecimal getTotalPrice() {
-        return price.multiply(BigDecimal.valueOf(quantity));
+    @PrePersist
+    @PreUpdate
+    private void validateProduct() {
+        if (product == null) {
+            throw new IllegalStateException("Product cannot be null for OrderItem");
+        }
     }
+
+
+
 }

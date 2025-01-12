@@ -46,6 +46,10 @@ public class User {
 
     private boolean active = true; // Состояние учетной записи (активирована или деактивирована)
 
+    public User(Long id) {
+        this.id = id;
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

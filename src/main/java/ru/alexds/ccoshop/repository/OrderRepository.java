@@ -1,19 +1,12 @@
 package ru.alexds.ccoshop.repository;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 import ru.alexds.ccoshop.entity.Order;
 import ru.alexds.ccoshop.entity.Status;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
     // Поиск по равенству
@@ -47,16 +40,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findCompletedOrdersByUserId(Long userId);
 
-    long countByProductIdAndStatus(Long productId, Status status);
+    //   long countByProductIdAndStatus(Long productId, Status status);
 
-    boolean existsByUserIdAndProductIdAndStatus(Long userId, Long productId, Status status);
-
-
+    //  boolean existsByUserIdAndProductIdAndStatus(Long userId, Long productId, Status status);
+    boolean existsByUser_IdAndItems_Product_IdAndStatus(Long userId, Long productId, Status status);
 
 
     // Находит все завершенные заказы пользователя
     List<Order> findByUserIdAndStatus(Long userId, Status status);
-
 
 
     // Подсчитывает количество заказов пользователя в определенном статусе

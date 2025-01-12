@@ -12,19 +12,21 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CartItemDTO {
-    private Long id;
-    private Long productId; // или использовать объект ProductDTO
-    private Integer quantity;
-    private BigDecimal totalPrice;
+    private Long id;          // ID товара в корзине
+    private Long userId;      // ID пользователя
+    private Long productId;   // ID продукта
+    private Integer quantity; // Количество
+    private BigDecimal price; // Цена
 
-    private Long userId;
+
 
 
     public CartItemDTO(CartItem cartItem) {
         this.id = cartItem.getId();
+        this.userId =cartItem.getUser().getId();
         this.productId = cartItem.getProduct().getId();
         this.quantity = cartItem.getQuantity();
-        this.totalPrice = cartItem.getTotalPrice();
+        this.price = cartItem.getPrice();
     }
 
 

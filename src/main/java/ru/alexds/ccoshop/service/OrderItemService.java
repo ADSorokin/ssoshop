@@ -39,7 +39,7 @@ public class OrderItemService {
                 .productName(item.getProduct().getName())
                 .quantity(item.getQuantity())
                 .price(item.getPrice())
-                .totalPrice(item.getTotalPrice())
+//                .totalPrice(item.getTotalPrice())
                 .build();
     }
 }

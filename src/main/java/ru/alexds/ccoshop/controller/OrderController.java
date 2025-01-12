@@ -1,12 +1,12 @@
 package ru.alexds.ccoshop.controller;
 
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.alexds.ccoshop.dto.OrderDTO;
 import ru.alexds.ccoshop.dto.OrderItemDTO;
-import ru.alexds.ccoshop.entity.Order;
 import ru.alexds.ccoshop.entity.Status;
 import ru.alexds.ccoshop.service.OrderItemService;
 import ru.alexds.ccoshop.service.OrderService;
@@ -25,10 +25,12 @@ public class OrderController {
     /**
      * Создать заказ на основе корзины пользователя
      */
-    @PostMapping("/from-cart/{userId}")
+
+
+    @PostMapping("/{userId}/create")
     public ResponseEntity<OrderDTO> createOrderFromCart(@PathVariable Long userId) {
-        OrderDTO orderDTO = orderService.createOrderFromCart(userId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(orderDTO);
+        OrderDTO order = orderService.createOrderFromCart(userId);
+        return ResponseEntity.ok(order);
     }
 
     /**
@@ -79,12 +81,12 @@ public class OrderController {
     }
 
 
-        /**
-         * Получить все элементы заказа по идентификатору заказа.
-         */
-        @GetMapping("/{orderId}/items")
-        public ResponseEntity<List<OrderItemDTO>> getOrderItems(@PathVariable Long orderId) {
-            List<OrderItemDTO> orderItems = orderItemService.getOrderItemsByOrderId(orderId);
-            return ResponseEntity.ok(orderItems);
-        }
- }
+    /**
+     * Получить все элементы заказа по идентификатору заказа.
+     */
+    @GetMapping("/{orderId}/items")
+    public ResponseEntity<List<OrderItemDTO>> getOrderItems(@PathVariable Long orderId) {
+        List<OrderItemDTO> orderItems = orderItemService.getOrderItemsByOrderId(orderId);
+        return ResponseEntity.ok(orderItems);
+    }
+}
