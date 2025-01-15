@@ -106,7 +106,7 @@ public class OrderService {
 
         // Обновление количества товара на складе
         product.setStockQuantity(product.getStockQuantity() - quantity);
-        productService.updateProduct(productService.convertToDTO(product));
+        productService.updateProduct(product.getId(),productService.convertToDTO(product));
 
         // Сохранение заказа, включая элементы заказа
         Order savedOrder = orderRepository.save(order);
@@ -187,7 +187,7 @@ public class OrderService {
                     product.getStockQuantity() + orderItem.getQuantity()
             );
             // Обновляем информацию о продукте
-            productService.updateProduct(productService.convertToDTO(product));
+            productService.updateProduct(product.getId(), productService.convertToDTO(product));
         }
 
         // Устанавливаем статус заказа как отмененный
@@ -427,7 +427,7 @@ public class OrderService {
 
             // Уменьшаем количество на складе
             product.setStockQuantity(product.getStockQuantity() - cartItem.getQuantity());
-            productService.updateProduct(productService.convertToDTO(product));
+            productService.updateProduct(product.getId(), productService.convertToDTO(product));
 
             // Создаем OrderItem и устанавливаем двустороннюю связь
             OrderItem orderItem = OrderItem.builder()

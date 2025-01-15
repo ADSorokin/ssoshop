@@ -32,17 +32,21 @@ public class Product {
 
     @NotEmpty(message = "Description cannot be empty")
     private String description;
-
+    @Column(nullable = false)
     private BigDecimal price;
+
+    @Column(name = "stock_quantity", nullable = false)
     private int stockQuantity;
 
+    @Column(nullable = false)
     private Double popularity;
 
-    @JsonBackReference
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
+    @Column(name = "image_path")
     private String imagePath; // Путь к изображению
 
     @Column(name = "created_at")
@@ -52,6 +56,17 @@ public class Product {
     @Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
     public Product(String name, String description, BigDecimal price, int stockQuantity, Category category, String imagePath) {
         this.name = name;

@@ -29,9 +29,6 @@ public class Category {
     private List<Product> products = new ArrayList<>(); // Список продуктов в этой категории
 
     // Конструктор для создания категории
-    public Category(String name) {
-        this.name = name;
-    }
 
     public Category(Long id) {
         this.id = id;

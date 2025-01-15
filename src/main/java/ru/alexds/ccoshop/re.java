@@ -1,3 +1,0 @@
-package ru.alexds.ccoshop;
-
-
