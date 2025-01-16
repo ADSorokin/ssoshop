@@ -1,10 +1,10 @@
 package ru.alexds.ccoshop.entity;
 
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -16,6 +16,7 @@ import java.util.List;
 @Data // Генерирует геттеры, сеттеры и другие методы, такие как toString, equals и hashCode
 @NoArgsConstructor // Генерирует пустой конструктор
 @AllArgsConstructor
+@Builder
 public class Category {
 
     @Id
@@ -24,7 +25,7 @@ public class Category {
 
     @NotEmpty(message = "Category name cannot be empty") // Проверка, что название не пустое
     private String name; // Название категории
-    @JsonBackReference
+
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true) // Связь с продуктами
     private List<Product> products = new ArrayList<>(); // Список продуктов в этой категории
 
@@ -34,15 +35,15 @@ public class Category {
         this.id = id;
     }
 
-    // Метод для добавления продукта в категорию
-    public void addProduct(Product product) {
-        products.add(product);
-        product.setCategory(this); // Устанавливаем связь обратно
-    }
-
-    // Метод для удаления продукта из категории
-    public void removeProduct(Product product) {
-        products.remove(product);
-        product.setCategory(null); // Убираем связь
-    }
+//    // Метод для добавления продукта в категорию
+//    public void addProduct(Product product) {
+//        products.add(product);
+//        product.setCategory(this); // Устанавливаем связь обратно
+//    }
+//
+//    // Метод для удаления продукта из категории
+//    public void removeProduct(Product product) {
+//        products.remove(product);
+//        product.setCategory(null); // Убираем связь
+//    }
 }

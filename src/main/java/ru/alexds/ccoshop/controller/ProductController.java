@@ -1,17 +1,17 @@
 package ru.alexds.ccoshop.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.alexds.ccoshop.dto.ProductDTO;
-import ru.alexds.ccoshop.entity.Product;
 import ru.alexds.ccoshop.service.ProductService;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/products")
@@ -56,11 +56,25 @@ public class ProductController {
      */
     @Tag(name = "Product", description = "Обновление существующего продукта")
     @PutMapping("/{id}")
-    public ResponseEntity<ProductDTO> updateProduct(@PathVariable Long id, @RequestBody ProductDTO productDTO) {
-        productDTO.setId(id); // Устанавливаем ID для обновления
-        ProductDTO updatedProduct = productService.updateProduct(id,productDTO);
-        return ResponseEntity.ok(updatedProduct);
+//    public ResponseEntity<ProductDTO> updateProduct(@PathVariable Long id, @RequestBody ProductDTO productDTO) {
+//        productDTO.setId(id); // Устанавливаем ID для обновления
+//        ProductDTO updatedProduct = productService.updateProduct(id,productDTO);
+//        return ResponseEntity.ok(updatedProduct);
+//    }
+    public ResponseEntity<ProductDTO> updateProduct(
+            @PathVariable Long id,
+            @Valid @RequestBody ProductDTO updateDTO) {
+        try {
+            ProductDTO updatedProduct = productService.updateProduct(id, updateDTO);
+            return ResponseEntity.ok(updatedProduct);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(null); // или создайте ErrorDTO с сообщением об ошибке
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
+
 
     /**
      * Удаление продукта по ID
@@ -113,4 +127,6 @@ public class ProductController {
         List<ProductDTO> products = productService.getProductsByPriceRange(minPrice, maxPrice);
         return ResponseEntity.ok(products);
     }
+
+
 }

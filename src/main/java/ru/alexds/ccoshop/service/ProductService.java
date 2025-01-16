@@ -110,6 +110,8 @@ public class ProductService {
                 .imagePath(product.getImagePath())
                 .categoryId(product.getCategory().getId())
                 .popularity(product.getPopularity())
+                .createAt(product.getCreatedAt())
+                .updatedAt(product.getUpdatedAt())
                 .build();
     }
 

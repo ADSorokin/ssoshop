@@ -28,13 +28,13 @@ public class ProductDTO {
 
     private LocalDateTime updatedAt;
 
-    public ProductDTO(Product product) {
-        this.id = product.getId();
-        this.name = product.getName();
-        this.description = product.getDescription();
-        this.price = product.getPrice();
-        this.stockQuantity = product.getStockQuantity();
-        this.popularity = product.getPopularity();
-        this.categoryId = product.getCategory() != null ? product.getCategory().getId() : null;
-    }
+//    public ProductDTO(Product product) {
+//        this.id = product.getId();
+//        this.name = product.getName();
+//        this.description = product.getDescription();
+//        this.price = product.getPrice();
+//        this.stockQuantity = product.getStockQuantity();
+//        this.popularity = product.getPopularity();
+//        this.categoryId = product.getCategory() != null ? product.getCategory().getId() : null;
+//    }
 }
