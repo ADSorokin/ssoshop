@@ -1,6 +1,6 @@
 package ru.alexds.ccoshop.controller;
 
-import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,8 @@ public class ProductController {
     /**
      * Получение всех продуктов
      */
-    @Tag(name = "Product", description = "Получение всех продуктов")
+
+    @Operation(summary = "Получение всех продуктов")
     @GetMapping
     public ResponseEntity<List<ProductDTO>> getAllProducts() {
         List<ProductDTO> products = productService.getAllProducts();
@@ -33,18 +34,18 @@ public class ProductController {
     /**
      * Получение продукта по ID
      */
-    @Tag(name = "Product", description = "Получение продукта по ID")
+
+    @Operation(summary = "Получение продукта по ID")
     @GetMapping("/{id}")
     public ResponseEntity<ProductDTO> getProductById(@PathVariable Long id) {
-        return productService.getProductById(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+        return productService.getProductById(id).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
     /**
      * Создание нового продукта
      */
-    @Tag(name = "Product", description = "Создание нового продукта")
+
+    @Operation(summary = "Создание нового продукта")
     @PostMapping
     public ResponseEntity<ProductDTO> createProduct(@RequestBody ProductDTO productDTO) {
         ProductDTO createdProduct = productService.createProduct(productDTO);
@@ -54,22 +55,16 @@ public class ProductController {
     /**
      * Обновление существующего продукта
      */
-    @Tag(name = "Product", description = "Обновление существующего продукта")
+
+    @Operation(summary = "Обновление существующего продукта")
     @PutMapping("/{id}")
-//    public ResponseEntity<ProductDTO> updateProduct(@PathVariable Long id, @RequestBody ProductDTO productDTO) {
-//        productDTO.setId(id); // Устанавливаем ID для обновления
-//        ProductDTO updatedProduct = productService.updateProduct(id,productDTO);
-//        return ResponseEntity.ok(updatedProduct);
-//    }
-    public ResponseEntity<ProductDTO> updateProduct(
-            @PathVariable Long id,
-            @Valid @RequestBody ProductDTO updateDTO) {
+
+    public ResponseEntity<ProductDTO> updateProduct(@PathVariable Long id, @Valid @RequestBody ProductDTO updateDTO) {
         try {
             ProductDTO updatedProduct = productService.updateProduct(id, updateDTO);
             return ResponseEntity.ok(updatedProduct);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest()
-                    .body(null); // или создайте ErrorDTO с сообщением об ошибке
+            return ResponseEntity.badRequest().body(null); // или создайте ErrorDTO с сообщением об ошибке
         } catch (EntityNotFoundException e) {
             return ResponseEntity.notFound().build();
         }
@@ -79,7 +74,7 @@ public class ProductController {
     /**
      * Удаление продукта по ID
      */
-    @Tag(name = "Product", description = "Удаление продукта по ID")
+    @Operation(summary = "Удаление продукта по ID")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
@@ -89,7 +84,8 @@ public class ProductController {
     /**
      * Получение популярных продуктов
      */
-    @Tag(name = "Product", description = "Получение популярных продуктов")
+
+    @Operation(summary = "Получение популярных продуктов")
     @GetMapping("/popular")
     public ResponseEntity<List<ProductDTO>> getPopularProducts() {
         List<ProductDTO> popularProducts = productService.getPopularProducts();
@@ -99,7 +95,7 @@ public class ProductController {
     /**
      * Поиск продуктов по имени
      */
-    @Tag(name = "Product", description = "Поиск продуктов по имени")
+    @Operation(summary = "Поиск продуктов по имени")
     @GetMapping("/search")
     public ResponseEntity<List<ProductDTO>> searchProducts(@RequestParam String name) {
         List<ProductDTO> products = productService.searchProductsByName(name);
@@ -109,7 +105,7 @@ public class ProductController {
     /**
      * Получение продуктов по категории
      */
-    @Tag(name = "Product", description = "Получение продуктов по категории")
+    @Operation(summary = "Получение продуктов по категории")
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<List<ProductDTO>> getProductsByCategory(@PathVariable Long categoryId) {
         List<ProductDTO> products = productService.getProductsByCategory(categoryId);
@@ -119,11 +115,10 @@ public class ProductController {
     /**
      * Получение продуктов по цене
      */
-    @Tag(name = "Product", description = "Получение продуктов по цене min?max")
+
+    @Operation(summary = "Получение продуктов по цене min?max")
     @GetMapping("/price")
-    public ResponseEntity<List<ProductDTO>> getProductsByPriceRange(
-            @RequestParam("min") BigDecimal minPrice,
-            @RequestParam("max") BigDecimal maxPrice) {
+    public ResponseEntity<List<ProductDTO>> getProductsByPriceRange(@RequestParam("min") BigDecimal minPrice, @RequestParam("max") BigDecimal maxPrice) {
         List<ProductDTO> products = productService.getProductsByPriceRange(minPrice, maxPrice);
         return ResponseEntity.ok(products);
     }

@@ -1,5 +1,6 @@
 package ru.alexds.ccoshop.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,16 +27,18 @@ public class CartController {
 
     private final CartService cartService;
     private final OrderService orderService;
-    /**
-     * Получение содержимого корзины пользователя
-     */
+
+    @Operation(summary = "Создать заказ из содержимого корзины")
     @PostMapping("/{userId}/create")
     public ResponseEntity<OrderDTO> createOrderFromCart(@PathVariable Long userId) {
 
         OrderDTO order = orderService.createOrderFromCart(userId);
         return ResponseEntity.ok(order);
     }
-
+    /**
+     * Получение содержимого корзины пользователя
+     */
+    @Operation(summary = "Получение содержимого корзины пользователя")
     @GetMapping("/{userId}")
     public ResponseEntity<List<CartItemDTO>> getCartItems(@PathVariable Long userId) {
 
@@ -50,6 +53,7 @@ public class CartController {
     /**
      * Добавить товар в корзину
      */
+    @Operation(summary = "обавить товар в корзину")
     @PostMapping("/add")
     public ResponseEntity<CartItemDTO> addCartItem(@RequestBody @Valid CartItemDTO cartItemDTO) {
         CartItemDTO addedCartItem = cartService.addCartItem(cartItemDTO);
@@ -66,6 +70,7 @@ public class CartController {
     /**
      * Обновление количества товара в корзине
      */
+    @Operation(summary = "Обновление количества товара в корзине")
     @PutMapping("/{cartItemId}")
     public ResponseEntity<CartItemDTO> updateCartItem(@PathVariable Long cartItemId, @Valid @RequestBody CartItemDTO cartItemDTO) {
         log.debug("Request to update cart item ID: {} with data: {}", cartItemId, cartItemDTO);
@@ -81,6 +86,7 @@ public class CartController {
     /**
      * Удаление товара из корзины
      */
+    @Operation(summary = "Удаление товара из корзины")
     @DeleteMapping("/{cartItemId}")
     public ResponseEntity<Void> removeFromCart(@PathVariable Long cartItemId) {
         log.debug("Request to remove cart item ID: {}", cartItemId);
@@ -91,6 +97,7 @@ public class CartController {
     /**
      * Очистка корзины пользователя
      */
+    @Operation(summary = "Очистка корзины пользователя")
     @DeleteMapping("/user/{userId}")
     public ResponseEntity<Void> clearCart(@PathVariable Long userId) {
         log.debug("Request to clear cart for user ID: {}", userId);
@@ -101,6 +108,7 @@ public class CartController {
     /**
      * Обработка исключений при недостаточном количестве товара
      */
+
     @ExceptionHandler(InsufficientStockException.class)
     public ResponseEntity<ErrorResponse> handleInsufficientStock(InsufficientStockException ex) {
         log.error("Insufficient stock error: {}", ex.getMessage());

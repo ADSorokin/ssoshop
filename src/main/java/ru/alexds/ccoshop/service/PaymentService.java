@@ -3,6 +3,8 @@ package ru.alexds.ccoshop.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.alexds.ccoshop.entity.Payment;
+import ru.alexds.ccoshop.entity.Status;
+import ru.alexds.ccoshop.repository.OrderRepository;
 import ru.alexds.ccoshop.repository.PaymentRepository;
 
 import java.time.LocalDateTime;
@@ -14,6 +16,8 @@ import java.util.Optional;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+
+
 
     /**
      * Запись транзакции в базу данных
@@ -27,6 +31,7 @@ public class PaymentService {
                 .message(message)
                 .createdAt(LocalDateTime.now())
                 .build();
+
         return paymentRepository.save(payment);
     }
 

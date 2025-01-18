@@ -3,6 +3,7 @@ package ru.alexds.ccoshop.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.alexds.ccoshop.entity.ARTClusterEntity;
 import ru.alexds.ccoshop.repository.ARTClusterRepository;
 
@@ -17,6 +18,7 @@ public class ARTClusterService {
 
     // Сохранение или обновление кластера
     public ARTClusterEntity saveCluster(ARTClusterEntity cluster) {
+
         return artClusterRepository.save(cluster);
     }
 
@@ -28,6 +30,14 @@ public class ARTClusterService {
     // Найти кластер по весам
     public Optional<ARTClusterEntity> findClusterByWeights(List<Double> weights) {
         return artClusterRepository.findByWeights(weights);
+    }
+
+    @Transactional
+    public ARTClusterEntity createCluster(List<Double> weights, List<Long> userIds) {
+        ARTClusterEntity cluster = new ARTClusterEntity();
+        cluster.setWeights(weights);
+        cluster.setUserIds(userIds);
+        return artClusterRepository.save(cluster); // Сохранение в БД
     }
 }
 

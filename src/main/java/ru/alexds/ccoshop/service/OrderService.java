@@ -1,29 +1,23 @@
 package ru.alexds.ccoshop.service;
 
 
-import org.springframework.data.domain.jaxb.SpringDataJaxb;
-import ru.alexds.ccoshop.dto.CartItemDTO;
-import ru.alexds.ccoshop.dto.OrderDTO;
-
-import ru.alexds.ccoshop.dto.OrderItemDTO;
-import ru.alexds.ccoshop.dto.UserDTO;
-import ru.alexds.ccoshop.entity.*;
-
-import java.math.RoundingMode;
-import java.time.YearMonth;
-import java.util.*;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.alexds.ccoshop.dto.CartItemDTO;
+import ru.alexds.ccoshop.dto.OrderDTO;
+import ru.alexds.ccoshop.dto.OrderItemDTO;
+import ru.alexds.ccoshop.entity.*;
 import ru.alexds.ccoshop.exeption.OrderNotFoundException;
 import ru.alexds.ccoshop.repository.OrderRepository;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.time.YearMonth;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
