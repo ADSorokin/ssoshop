@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.alexds.ccoshop.dto.CartItemDTO;
 import ru.alexds.ccoshop.entity.CartItem;
+import ru.alexds.ccoshop.entity.Order;
 import ru.alexds.ccoshop.entity.Product;
 import ru.alexds.ccoshop.entity.User;
 import ru.alexds.ccoshop.exeption.CartItemNotFoundException;
@@ -247,7 +248,8 @@ public class CartService {
                 cartItemDTO.getUserId(),
                 cartItemDTO.getProductId()
         );
-
+        // TODO: 19.01.2025 добавление рейтингов написать функцию
+        ///saveRatingsForOrder(Order order)
         CartItem cartItem;
 
         if (existingCartItem.isPresent()) {

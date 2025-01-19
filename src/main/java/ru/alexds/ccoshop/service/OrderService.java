@@ -2,6 +2,7 @@ package ru.alexds.ccoshop.service;
 
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -9,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.alexds.ccoshop.dto.CartItemDTO;
 import ru.alexds.ccoshop.dto.OrderDTO;
 import ru.alexds.ccoshop.dto.OrderItemDTO;
+import ru.alexds.ccoshop.dto.RatingDTO;
 import ru.alexds.ccoshop.entity.*;
 import ru.alexds.ccoshop.exeption.OrderNotFoundException;
 import ru.alexds.ccoshop.repository.OrderRepository;
@@ -20,6 +22,7 @@ import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -28,6 +31,7 @@ public class OrderService {
     private final UserService userService;
     private final ProductService productService;
     private final CartService cartService;
+    private final RatingService ratingService;
 
 
 
@@ -443,6 +447,9 @@ public class OrderService {
         // Очищаем корзину
         cartService.clearCartForUser(userId);
 
+        //Устанавливаем рейтинг по умолчанию
+        saveRatingsForOrder(order);
+
         // Конвертируем в DTO и возвращаем
         return convertOrderToDTO(savedOrder);
     }
@@ -470,6 +477,30 @@ public class OrderService {
                 order.getStatus(),
                 order.getTotalPrice()
         );
+    }
+
+    /**
+     * Устанавливаем рейтинг товарам заказа
+     *
+
+     */
+    private void saveRatingsForOrder(Order order) {
+        log.info("Saving ratings for order: {}", order.getId());
+        for (OrderItem item : order.getItems()) {
+            RatingDTO ratingDTO = RatingDTO.builder()
+                    .userId(order.getUser().getId())
+                    .itemId(item.getProduct().getId())
+                    .rating(item.getProduct().getPopularity())
+                    .build();
+
+            try {
+                Rating savedRating = ratingService.saveRating(ratingDTO);
+                log.info("Saved rating: {}", savedRating);
+            } catch (Exception e) {
+                log.error("Error saving rating for product {} in order {}: {}",
+                        item.getProduct().getId(), order.getId(), e.getMessage());
+            }
+        }
     }
 
 }

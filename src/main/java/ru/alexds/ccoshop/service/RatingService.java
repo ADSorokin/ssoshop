@@ -2,14 +2,18 @@ package ru.alexds.ccoshop.service;
 
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.alexds.ccoshop.dto.RatingDTO;
+import ru.alexds.ccoshop.entity.Order;
+import ru.alexds.ccoshop.entity.OrderItem;
 import ru.alexds.ccoshop.entity.Rating;
 import ru.alexds.ccoshop.repository.RatingRepository;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RatingService {
@@ -29,5 +33,8 @@ public class RatingService {
                 .map(r -> new RatingDTO(r.getUserId(), r.getItemId(), r.getRating()))
                 .collect(Collectors.toList());
     }
+
+
+
 }
 
