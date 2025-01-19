@@ -2,6 +2,7 @@ package ru.alexds.ccoshop.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.alexds.ccoshop.entity.Currency;
 import ru.alexds.ccoshop.entity.Payment;
 import ru.alexds.ccoshop.entity.Status;
 import ru.alexds.ccoshop.repository.OrderRepository;
@@ -22,7 +23,7 @@ public class PaymentService {
     /**
      * Запись транзакции в базу данных
      */
-    public Payment savePayment(Long orderId, Double amount, String currency, String status, String message) {
+    public Payment savePayment(Long orderId, Double amount, Currency currency, String status, String message) {
         Payment payment = Payment.builder()
                 .orderId(orderId)
                 .amount(amount)

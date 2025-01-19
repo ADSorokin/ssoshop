@@ -30,7 +30,8 @@ public class Payment {
     private Double amount; // Сумма оплаты
 
     @Column(nullable = false)
-    private String currency; // Валюта
+    @Enumerated(EnumType.STRING)
+    private Currency currency; // Валюта
 
     @Column(nullable = false)
     private String status; // Статус оплаты (SUCCESS / FAILED)

@@ -50,7 +50,7 @@ public class PaymentController {
 
         Optional<Order> order = orderRepository.findById(request.getOrderId());
         Status status = order.get().getStatus();
-        if (status != Status.NEW || status != Status.CANCELLED) {
+        if (!(status.equals(Status.NEW) || status.equals(Status.CANCELLED))) {
             Payment payment = paymentService.savePayment(request.getOrderId(), request.getAmount(), request.getCurrency(),
                     "FAILED", "Only new orders and canceled ones can be payed");
 

@@ -3,6 +3,7 @@ package ru.alexds.ccoshop.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import ru.alexds.ccoshop.entity.Currency;
 
 @Data
 @NoArgsConstructor
@@ -10,5 +11,5 @@ import lombok.NoArgsConstructor;
 public class PaymentRequestDTO {
     private Long orderId;        // ID заказа, который оплачивается
     private Double amount;       // Сумма оплаты
-    private String currency;     // Валюта (например, "USD", "EUR")
+    private Currency currency;     // Валюта (например, "USD", "EUR")
 }
