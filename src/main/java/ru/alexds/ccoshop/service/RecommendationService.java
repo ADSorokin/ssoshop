@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import ru.alexds.ccoshop.dto.RecommendationDTO;
 import ru.alexds.ccoshop.entity.ARTClusterEntity;
 import ru.alexds.ccoshop.entity.Rating;
+import ru.alexds.ccoshop.repository.ProductRepository;
 import ru.alexds.ccoshop.repository.RatingRepository;
 
 import javax.sql.DataSource;
@@ -39,6 +40,7 @@ public class RecommendationService {
     private final DataSource dataSource; // JDBC источник данных для Mahout
     private final RatingRepository ratingRepository; // Репозиторий для хранения рейтингов
     private final ARTClusterService artClusterService; // Сервис для управления ART-кластерами
+    private final ProductRepository productRepository;
 
     private DataModel dataModel; // Модель данных Mahout
     private List<ARTClusterEntity> artClusters = new ArrayList<>(); // Список ART-кластеров
@@ -155,11 +157,16 @@ public class RecommendationService {
      * Сравнение вектора пользователя с кластером (метод ART1).
      */
     private double matchCluster(ARTClusterEntity cluster, double[] userVector) {
-        List<Double> weights = cluster.getWeights();
+    List<Double> weights =cluster.getWeights();
+        if (weights.isEmpty()||weights.size()< userVector.length) { // Если веса еще не инициализированы
+            for (int i = 0; i < userVector.length; i++) {
+                weights.add(userVector[i]); // Инициализация весов вектора пользователя для нового кластера
+            }
+        }
         double dotProduct = 0.0;
         double magnitudeWeights = 0.0;
         double magnitudeVector = 0.0;
-
+// TODO: 19.01.2025 найти ошибку  
         for (int i = 0; i < userVector.length; i++) {
             double weight = weights.get(i);
             double input = userVector[i];
@@ -197,9 +204,11 @@ public class RecommendationService {
         // Создаем вектор, длина которого равна количеству товаров в системе
         int vectorSize = (int) ratingRepository.count(); // Можно заменить на количество уникальных товаров
         double[] vector = new double[vectorSize];
+        System.out.println(vectorSize);
 
         for (Rating rating : ratings) {
-            vector[rating.getItemId().intValue() - 1] = 1.0; // Простое бинарное представление
+            vector[rating.getItemId().intValue() - 1-100] = 1.0; // Простое бинарное представление
+            System.out.println(rating.getItemId());
         }
 
         return vector;
