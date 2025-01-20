@@ -12,6 +12,7 @@ import org.apache.mahout.cf.taste.impl.model.jdbc.MySQLJDBCDataModel;
 import org.apache.mahout.cf.taste.impl.neighborhood.NearestNUserNeighborhood;
 import org.apache.mahout.cf.taste.impl.recommender.GenericItemBasedRecommender;
 import org.apache.mahout.cf.taste.impl.recommender.GenericUserBasedRecommender;
+import org.apache.mahout.cf.taste.impl.similarity.EuclideanDistanceSimilarity;
 import org.apache.mahout.cf.taste.impl.similarity.PearsonCorrelationSimilarity;
 import org.apache.mahout.cf.taste.model.DataModel;
 import org.apache.mahout.cf.taste.neighborhood.UserNeighborhood;
@@ -29,6 +30,10 @@ import ru.alexds.ccoshop.repository.ProductRepository;
 import ru.alexds.ccoshop.repository.RatingRepository;
 
 import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -59,6 +64,17 @@ public class RecommendationService {
 
         // Загрузка всех ART кластеров из базы данных
         artClusters = artClusterService.getAllClusters();
+        // Логируем количество пользователей и товаров в модели данных
+        try (Connection connection = dataSource.getConnection()) {
+            PreparedStatement stmt = connection.prepareStatement("SELECT COUNT(DISTINCT user_id) AS user_count, COUNT(DISTINCT item_id) AS item_count FROM ratings");
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                log.info("Number of users: {}", rs.getInt("user_count"));
+                log.info("Number of items: {}", rs.getInt("item_count"));
+            }
+        } catch (SQLException e) {
+            log.error("Error fetching data from database", e);
+        }
     }
 
     /**
@@ -66,7 +82,8 @@ public class RecommendationService {
      */
     public List<RecommendationDTO> getUserBasedRecommendations(Long userId, int numRecommendations) throws TasteException {
         // Создаем объект Similarity для определения похожести между пользователями
-        PearsonCorrelationSimilarity similarity = new PearsonCorrelationSimilarity(dataModel);
+//        PearsonCorrelationSimilarity similarity = new PearsonCorrelationSimilarity(dataModel);
+        EuclideanDistanceSimilarity similarity = new EuclideanDistanceSimilarity(dataModel);
 
         // Формируем соседство пользователей
         UserNeighborhood neighborhood = new NearestNUserNeighborhood(NEIGHBORHOOD_SIZE, similarity, dataModel);
@@ -76,6 +93,10 @@ public class RecommendationService {
 
         // Получаем рекомендации для пользователя
         List<RecommendedItem> recommendedItems = recommender.recommend(userId, numRecommendations);
+
+        // Логируем количество соседей для текущего пользователя
+        long[] neighborIds = neighborhood.getUserNeighborhood(userId);
+        log.info("Number of neighbors for user {}: {}", userId, neighborIds.length);
 
         // Преобразуем список в рекомендационные DTO
         return mapRecommendationsToDTO(recommendedItems);
