@@ -14,6 +14,7 @@ import org.apache.mahout.cf.taste.impl.recommender.GenericItemBasedRecommender;
 import org.apache.mahout.cf.taste.impl.recommender.GenericUserBasedRecommender;
 import org.apache.mahout.cf.taste.impl.similarity.EuclideanDistanceSimilarity;
 import org.apache.mahout.cf.taste.impl.similarity.PearsonCorrelationSimilarity;
+import org.apache.mahout.cf.taste.impl.similarity.TanimotoCoefficientSimilarity;
 import org.apache.mahout.cf.taste.model.DataModel;
 import org.apache.mahout.cf.taste.neighborhood.UserNeighborhood;
 import org.apache.mahout.cf.taste.recommender.RecommendedItem;
@@ -107,8 +108,8 @@ public class RecommendationService {
      */
     public List<RecommendationDTO> getItemBasedRecommendations(Long itemId, int numRecommendations) throws TasteException {
         // Используем сходство на основе Item для определения похожих товаров
-        ItemSimilarity similarity = new PearsonCorrelationSimilarity(dataModel);
-
+        //ItemSimilarity similarity = new PearsonCorrelationSimilarity(dataModel);
+        ItemSimilarity similarity = new TanimotoCoefficientSimilarity(dataModel);
         // Создаем Item-Based рекомендатель
         GenericItemBasedRecommender recommender = new GenericItemBasedRecommender(dataModel, similarity);
 
@@ -187,7 +188,7 @@ public class RecommendationService {
         double dotProduct = 0.0;
         double magnitudeWeights = 0.0;
         double magnitudeVector = 0.0;
-// TODO: 19.01.2025 найти ошибку  
+
         for (int i = 0; i < userVector.length; i++) {
             double weight = weights.get(i);
             double input = userVector[i];
