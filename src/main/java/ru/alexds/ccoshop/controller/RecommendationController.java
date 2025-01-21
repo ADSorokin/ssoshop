@@ -52,7 +52,7 @@ public class RecommendationController {
             @PathVariable @Min(1) Long itemId,
 
             @Parameter(description = "Количество рекомендаций")
-            @RequestParam(defaultValue = "5") @Min(1) int numRecommendations
+            @RequestParam(defaultValue = "3") @Min(1) int numRecommendations
     ) {
         try {
             log.debug("Получение рекомендаций для товара с ID: {}", itemId);
@@ -81,34 +81,36 @@ public class RecommendationController {
         }
     }
 
+
+
     @Operation(summary = "Получить гибридные рекомендации")
     @GetMapping("/hybrid/{userId}")
     public ResponseEntity<List<RecommendationDTO>> getHybridRecommendations(
-            @Parameter(description = "ID пользователя", required = true)
             @PathVariable @Min(1) Long userId,
-
-            @Parameter(description = "Количество рекомендаций")
-            @RequestParam(defaultValue = "5") @Min(1) int numRecommendations
+            @RequestParam(defaultValue = "3") @Min(1) int numRecommendations
     ) {
         try {
             log.debug("Получение гибридных рекомендаций для пользователя с ID: {}", userId);
 
-            // Получаем рекомендации разных типов
-            List<RecommendationDTO> userBased =
-                    recommendationService.getUserBasedRecommendations(userId, numRecommendations);
-            List<RecommendationDTO> artBased =
-                    recommendationService.getARTRecommendations(userId);
+            // Получаем User-Based рекомендации
+            List<RecommendationDTO> userBased = recommendationService.getUserBasedRecommendations(userId, numRecommendations);
 
-            // Здесь можно добавить логику объединения рекомендаций
-            // Например, взять топ-N из каждого типа рекомендаций
+            // Получаем ART-Based рекомендации
+            List<RecommendationDTO> artBased = recommendationService.getARTRecommendations(userId);
 
-            return ResponseEntity.ok(userBased); // Временно возвращаем только user-based
+            // Объединяем рекомендации
+            List<RecommendationDTO> combinedRecommendations = recommendationService.mergeRecommendations(
+                    userBased, artBased, numRecommendations
+            );
+
+            return ResponseEntity.ok(combinedRecommendations);
         } catch (Exception e) {
             log.error("Ошибка при получении гибридных рекомендаций для пользователя {}: {}",
                     userId, e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }
+
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {
@@ -117,128 +119,12 @@ public class RecommendationController {
                 .internalServerError()
                 .body(new ErrorResponse(505, "Внутренняя ошибка сервера", e.getMessage()));
     }
+
+    /**
+     * Пинг для проверки на работоспособность сервиса рекомендаций.
+     */
+    @GetMapping("/ping")
+    public ResponseEntity<String> ping() {
+        return ResponseEntity.ok("Recommendation API is working!");
+    }
 }
-
-
-//    @Operation(summary = "Получить гибридные рекомендации")
-//    @GetMapping("/hybrid/{userId}")
-//    public ResponseEntity<List<RecommendationDTO>> getHybridRecommendations(
-//            @Parameter(description = "ID пользователя", required = true)
-//            @PathVariable @Min(1) Long userId,
-//
-//            @Parameter(description = "Количество рекомендаций")
-//            @RequestParam(defaultValue = "5") @Min(1) int numRecommendations
-//    ) {
-//        try {
-//            log.debug("Получение гибридных рекомендаций для пользователя с ID: {}", userId);
-//
-//            // Получаем рекомендации разных типов
-//            List<RecommendationDTO> userBased =
-//                    recommendationService.getUserBasedRecommendations(userId, numRecommendations);
-//            List<RecommendationDTO> artBased =
-//                    recommendationService.getARTRecommendations(userId);
-//
-//            // Здесь можно добавить логику объединения рекомендаций
-//            // Например, взять топ-N из каждого типа рекомендаций
-//
-//            return ResponseEntity.ok(userBased); // Временно возвращаем только user-based
-//        } catch (Exception e) {
-//            log.error("Ошибка при получении гибридных рекомендаций для пользователя {}: {}",
-//                    userId, e.getMessage());
-//            return ResponseEntity.badRequest().build();
-//        }
-//    }
-
-
-//@Data
-//@AllArgsConstructor
-//class ErrorResponse {
-//    private String error;
-//    private String message;
-//}
-//
-//import lombok.RequiredArgsConstructor;
-//import org.springframework.http.ResponseEntity;
-//import org.springframework.web.bind.annotation.*;
-//import ru.alexds.ccoshop.entity.Product;
-//import ru.alexds.ccoshop.service.RecommendationService;
-//
-//import java.util.List;
-
-//@RestController
-//@RequestMapping("/api/recommendations")
-//@RequiredArgsConstructor
-//public class RecommendationController {
-//
-//    private final RecommendationService recommendationService;
-//
-//    /**
-//     * Получить User-Based рекомендации для пользователя.
-//     */
-//    @GetMapping("/user/{userId}")
-//    public ResponseEntity<List<Product>> getUserBasedRecommendations(
-//            @PathVariable Long userId,
-//            @RequestParam(defaultValue = "5") int numRecommendations,
-//            @RequestParam(required = false) Double minPrice,
-//            @RequestParam(required = false) Double maxPrice
-//    ) {
-//        try {
-//            List<Product> recommendations = recommendationService.getUserBasedRecommendations(userId, numRecommendations, minPrice, maxPrice);
-//
-//            if (recommendations.isEmpty()) {
-//                return ResponseEntity.noContent().build();
-//            }
-//
-//            return ResponseEntity.ok(recommendations);
-//        } catch (Exception e) {
-//            return ResponseEntity.internalServerError().body(null);
-//        }
-//    }
-//
-//    /**
-//     * Получить Item-Based рекомендации для товара.
-//     */
-//    @GetMapping("/item/{productId}")
-//    public ResponseEntity<List<Product>> getItemBasedRecommendations(
-//            @PathVariable Long productId,
-//            @RequestParam(defaultValue = "5") int numRecommendations
-//    ) {
-//        try {
-//            List<Product> recommendations = recommendationService.getItemBasedRecommendations(productId, numRecommendations);
-//
-//            if (recommendations.isEmpty()) {
-//                return ResponseEntity.noContent().build();
-//            }
-//
-//            return ResponseEntity.ok(recommendations);
-//        } catch (Exception e) {
-//            return ResponseEntity.internalServerError().body(null);
-//        }
-//    }
-//
-//    /**
-//     * Получить гибридные рекомендации для пользователя.
-//     */
-//    @GetMapping("/hybrid/{userId}")
-//    public ResponseEntity<List<Product>> getHybridRecommendations(@PathVariable Long userId) {
-//        try {
-//            List<Product> recommendations = recommendationService.getHybridRecommendations(userId);
-//
-//            if (recommendations.isEmpty()) {
-//                return ResponseEntity.noContent().build();
-//            }
-//
-//            return ResponseEntity.ok(recommendations);
-//        } catch (Exception e) {
-//            return ResponseEntity.internalServerError().body(null);
-//        }
-//    }
-//
-//    /**
-//     * Пинг для проверки на работоспособность сервиса рекомендаций.
-//     */
-//    @GetMapping("/ping")
-//    public ResponseEntity<String> ping() {
-//        return ResponseEntity.ok("Recommendation API is working!");
-//    }
-//}

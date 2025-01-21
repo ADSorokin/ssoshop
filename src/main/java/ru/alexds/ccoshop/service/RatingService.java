@@ -34,6 +34,10 @@ public class RatingService {
                 .collect(Collectors.toList());
     }
 
+//    public  Rating  findRating(Long itemId) {
+//        return ratingRepository.findByItemId(itemId);
+//    }
+
 
 
 }
