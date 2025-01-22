@@ -115,24 +115,7 @@ public class ProductService {
                 .build();
     }
 
-//    public ProductDTO updateProduct(ProductDTO productDTO) {
-//        Product product = convertToEntity(productDTO);
-//        Product updatedProduct = productRepository.save(product);
-//        return convertToDTO(updatedProduct);
-//    }
 
-    // Другие методы...
-
-//    ProductDTO convertToDTO(Product product) {
-//        return ProductDTO.builder()
-//                .id(product.getId())
-//                .name(product.getName())
-//                .description(product.getDescription())
-//                .price(product.getPrice())
-//                .stockQuantity(product.getStockQuantity())
-//                .categoryId(product.getCategory().getId()) // если необходимо
-//                .build();
-//    }
 
     private Product convertToEntity(ProductDTO productDTO) {
         return Product.builder().id(productDTO.getId()).name(productDTO.getName()).description(productDTO.getDescription()).price(productDTO.getPrice()).stockQuantity(productDTO.getStockQuantity()).category(new Category(productDTO.getCategoryId())) // если необходимо
