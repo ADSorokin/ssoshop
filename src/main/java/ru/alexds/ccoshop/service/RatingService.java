@@ -34,10 +34,26 @@ public class RatingService {
                 .collect(Collectors.toList());
     }
 
-//    public  Rating  findRating(Long itemId) {
-//        return ratingRepository.findByItemId(itemId);
-//    }
 
+    public List<RatingDTO> getRatingsByItem(Long itemId) {
+        return ratingRepository.findByItemId(itemId)
+                .stream()
+                .map(r -> new RatingDTO(r.getUserId(), r.getItemId(), r.getRating()))
+                .collect(Collectors.toList());
+    }
+
+    public Double getAverageRatingByItem(List<RatingDTO> ratingDTOList) {
+        // Проверяем, что список не пустой или null
+        if (ratingDTOList == null || ratingDTOList.isEmpty()) {
+            return 0.0; // Возвращаем 0.0, если нет никаких рейтингов
+        }
+
+        // Считаем средний рейтинг
+        return ratingDTOList.stream()
+                .mapToDouble(RatingDTO::getRating) // Преобразуем каждый объект RatingDTO в значение рейтинга
+                .average() // Вычисляем среднее
+                .orElse(0.0); // Возвращаем 0.0, если среднее невозможно посчитать
+    }
 
 
 }

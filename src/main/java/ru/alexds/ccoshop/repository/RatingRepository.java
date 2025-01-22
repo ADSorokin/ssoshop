@@ -11,5 +11,8 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
     List<Rating> findByItemId(Long itemId); // Найти все рейтинги для определенного товара
 
 
+
+
+
 }
 

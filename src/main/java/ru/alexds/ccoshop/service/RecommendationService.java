@@ -9,10 +9,14 @@ import org.apache.mahout.cf.taste.impl.model.jdbc.MySQLJDBCDataModel;
 import org.apache.mahout.cf.taste.impl.neighborhood.NearestNUserNeighborhood;
 import org.apache.mahout.cf.taste.impl.recommender.GenericItemBasedRecommender;
 import org.apache.mahout.cf.taste.impl.recommender.GenericUserBasedRecommender;
+import org.apache.mahout.cf.taste.impl.similarity.EuclideanDistanceSimilarity;
+import org.apache.mahout.cf.taste.impl.similarity.LogLikelihoodSimilarity;
+import org.apache.mahout.cf.taste.impl.similarity.SpearmanCorrelationSimilarity;
 import org.apache.mahout.cf.taste.impl.similarity.TanimotoCoefficientSimilarity;
 import org.apache.mahout.cf.taste.model.DataModel;
 import org.apache.mahout.cf.taste.neighborhood.UserNeighborhood;
 import org.apache.mahout.cf.taste.recommender.RecommendedItem;
+import org.apache.mahout.cf.taste.similarity.ItemSimilarity;
 import org.springframework.stereotype.Service;
 import ru.alexds.ccoshop.dto.RecommendationDTO;
 import ru.alexds.ccoshop.entity.ARTClusterEntity;
@@ -36,15 +40,15 @@ public class RecommendationService {
     private final DataSource dataSource; // JDBC источник данных для Mahout
     private final RatingRepository ratingRepository; // Репозиторий для хранения рейтингов
     private final ARTClusterService artClusterService; // Сервис для управления ART-кластерами
-    private final ProductRepository productRepository;
+    private final RatingService ratingService;
     private final ProductService productService;
 
     private DataModel dataModel; // Модель данных Mahout
     private List<ARTClusterEntity> artClusters = new ArrayList<>(); // Список ART-кластеров
 
-    private static final double VIGILANCE_PARAMETER = 0.9;
-    private static final double LEARNING_RATE = 0.35;
-    private static final int NEIGHBORHOOD_SIZE = 5;
+    private static final double VIGILANCE_PARAMETER = 0.6;
+    private static final double LEARNING_RATE = 0.1;
+    private static final int NEIGHBORHOOD_SIZE = 7;
 
     /**
      * Инициализация модели Mahout и загрузка ART-кластеров из базы при старте приложения.
@@ -75,9 +79,10 @@ public class RecommendationService {
     public List<RecommendationDTO> getUserBasedRecommendations(Long userId, int numRecommendations) throws TasteException {
         // Создаем объект Similarity для определения похожести между пользователями
         //PearsonCorrelationSimilarity similarity = new PearsonCorrelationSimilarity(dataModel);
-        //EuclideanDistanceSimilarity similarity = new EuclideanDistanceSimilarity(dataModel);
-        //UncenteredCosineSimilarity similarity = new UncenteredCosineSimilarity(dataModel);
-        TanimotoCoefficientSimilarity similarity = new TanimotoCoefficientSimilarity(dataModel);
+        EuclideanDistanceSimilarity similarity = new EuclideanDistanceSimilarity(dataModel);
+        //SpearmanCorrelationSimilarity similarity = new SpearmanCorrelationSimilarity(dataModel);
+        //TanimotoCoefficientSimilarity similarity = new TanimotoCoefficientSimilarity(dataModel);
+        //LogLikelihoodSimilarity similarity = new LogLikelihoodSimilarity(dataModel);
 
         // Формируем соседство пользователей
         UserNeighborhood neighborhood = new NearestNUserNeighborhood(NEIGHBORHOOD_SIZE, similarity, dataModel);
@@ -102,8 +107,10 @@ public class RecommendationService {
     public List<RecommendationDTO> getItemBasedRecommendations(Long itemId, int numRecommendations) throws TasteException {
         // Используем сходство на основе Item для определения похожих товаров
         //ItemSimilarity similarity = new PearsonCorrelationSimilarity(dataModel);
-        // ItemSimilarity similarity = new TanimotoCoefficientSimilarity(dataModel);
-        AdjustedCosineSimilarity similarity = new AdjustedCosineSimilarity(dataModel);
+        //ItemSimilarity similarity = new TanimotoCoefficientSimilarity(dataModel);
+        //ItemSimilarity similarity = new EuclideanDistanceSimilarity(dataModel);
+        // Вызываем свой кастомный метод
+       ItemSimilarity similarity = new AdjustedCosineSimilarity(dataModel);
         // Создаем Item-Based рекомендатель
         GenericItemBasedRecommender recommender = new GenericItemBasedRecommender(dataModel, similarity);
 
@@ -159,7 +166,9 @@ public class RecommendationService {
                 .collect(Collectors.toSet());
 
         // Преобразуем в список `RecommendationDTO`
-        return productIds.stream().map(productId -> new RecommendationDTO(productId, productService.getProductById(productId).get().getName(),productService.getProductById(productId).get().getPopularity() )) // Можно заменить имя товара из ProductService
+        return productIds.stream().map(productId -> new RecommendationDTO(productId,
+                        productService.getProductById(productId).get().getName(),
+                        ratingService.getAverageRatingByItem(ratingService.getRatingsByItem(productId)))) // Можно заменить имя товара из ProductService
                 .collect(Collectors.toList());
     }
 
@@ -224,28 +233,11 @@ public class RecommendationService {
         return vector;
     }
 
-    // Метод для слияния рекомендаций
-//    private List<RecommendationDTO> mergeRecommendations(
-//            List<RecommendationDTO> userBased, List<RecommendationDTO> artBased) {
-//        Set<Long> seenItems = new HashSet<>();
-//        List<RecommendationDTO> combined = new ArrayList<>();
-//
-//        for (RecommendationDTO rec : userBased) {
-//            if (seenItems.add(rec.getItemId())) {
-//                combined.add(rec);
-//            }
-//        }
-//        for (RecommendationDTO rec : artBased) {
-//            if (seenItems.add(rec.getItemId())) {
-//                combined.add(rec);
-//            }
-//        }
-//        return combined;
-//    }
-
 
     // Метод для объединения User-Based и ART-Based рекомендаций
-    public List<RecommendationDTO> mergeRecommendations(List<RecommendationDTO> userBased, List<RecommendationDTO> artBased, int numRecommendations) {
+    public List<RecommendationDTO> mergeRecommendations(List<RecommendationDTO> userBased,
+                                                        List<RecommendationDTO> artBased,
+                                                        int numRecommendations) {
 
         // Сначала объединяем все рекомендации в одну коллекцию
         List<RecommendationDTO> allRecommendations = new ArrayList<>();
@@ -275,6 +267,10 @@ public class RecommendationService {
      * Преобразование Mahout RecommendedItem в RecommendationDTO.
      */
     private List<RecommendationDTO> mapRecommendationsToDTO(List<RecommendedItem> recommendedItems) {
-        return recommendedItems.stream().map(item -> new RecommendationDTO(item.getItemID(), productService.getProductById(item.getItemID()).get().getName(), item.getValue())).collect(Collectors.toList());
+        System.out.println(recommendedItems);
+        return recommendedItems.stream().map(item -> new RecommendationDTO(
+                item.getItemID(),
+                productService.getProductById(item.getItemID()).get().getName(),
+                item.getValue())).collect(Collectors.toList());
     }
 }
