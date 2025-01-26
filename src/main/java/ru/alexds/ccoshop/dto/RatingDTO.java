@@ -1,17 +1,47 @@
+
+/**
+ * Пакет для DTO (Data Transfer Objects) приложения.
+ */
 package ru.alexds.ccoshop.dto;
 
 import jakarta.validation.constraints.NotEmpty;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+/**
+ * Класс RatingDTO представляет собой DTO (Data Transfer Object), используемый для передачи данных о рейтинге между слоями приложения.
+ * Этот класс используется для упрощения и защиты передачи данных, избегая передачи ненужных или чувствительных полей.
+ * Для удобства использования Lombok генерирует геттеры, сеттеры, equals, hashCode и toString методы,
+ * а также пустой, полностью параметризованный конструкторы и builder-конструктор.
+ */
+@Data // Генерирует геттеры, сеттеры, equals, hashCode и toString
+@Builder // Генерирует builder-конструктор для удобного создания объектов
+@NoArgsConstructor // Генерирует пустой конструктор
+@AllArgsConstructor // Генерирует конструктор с аргументами
 public class RatingDTO {
-    @NotEmpty(message = "Rating Id cannot be empty")
+
+    /**
+     * Идентификатор пользователя, который выставил рейтинг.
+     * Аннотация @NotEmpty проверяет, чтобы поле не было пустым.
+     * Сообщение об ошибке: "Идентификатор рейтинга не может быть пустым".
+     */
+    @NotEmpty(message = "Идентификатор рейтинга не может быть пустым")
     private Long userId;     // Идентификатор пользователя
-    @NotEmpty(message = "Item Id cannot be empty")
+
+    /**
+     * Идентификатор товара, которому выставлен рейтинг.
+     * Аннотация @NotEmpty проверяет, чтобы поле не было пустым.
+     * Сообщение об ошибке: "Идентификатор элемента не может быть пустым".
+     */
+    @NotEmpty(message = "Идентификатор элемента не может быть пустым")
     private Long itemId;     // Идентификатор товара
 
+    /**
+     * Рейтинг, выставленный пользователем.
+     * Это числовое значение, представляющее оценку товара пользователем.
+     * Поле может быть null, если рейтинг еще не был установлен.
+     */
     private Double rating;   // Рейтинг, выставленный пользователем
 }

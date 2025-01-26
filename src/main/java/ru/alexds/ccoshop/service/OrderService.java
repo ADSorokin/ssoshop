@@ -1,6 +1,5 @@
 package ru.alexds.ccoshop.service;
 
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -12,9 +11,9 @@ import ru.alexds.ccoshop.dto.OrderDTO;
 import ru.alexds.ccoshop.dto.OrderItemDTO;
 import ru.alexds.ccoshop.dto.RatingDTO;
 import ru.alexds.ccoshop.entity.*;
+import ru.alexds.ccoshop.exeption.GlobalExceptionHandler;
 import ru.alexds.ccoshop.exeption.OrderNotFoundException;
 import ru.alexds.ccoshop.repository.OrderRepository;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -22,226 +21,198 @@ import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Сервис для управления заказами пользователей.
+ * Обеспечивает API для создания, получения, обновления и удаления заказов,
+ * а также для получения статистики по заказам и продуктам.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
-
-    private final OrderRepository orderRepository;
-    private final UserService userService;
-    private final ProductService productService;
-    private final CartService cartService;
-    private final RatingService ratingService;
-
-
-
+    private final OrderRepository orderRepository; // Репозиторий для работы с заказами
+    private final UserService userService; // Сервис для работы с пользователями
+    private final ProductService productService; // Сервис для работы с продуктами
+    private final CartService cartService; // Сервис для работы с корзинами
+    private final RatingService ratingService; // Сервис для работы с рейтингами
 
     /**
-     * Создание нового заказа
+     * Создает новый заказ на основе одного продукта.
+     *
+     * @param userId    Идентификатор пользователя, который создает заказ
+     * @param productId Идентификатор продукта, который будет включен в заказ
+     * @param quantity  Количество продуктов для заказа
+     * @return DTO объект созданного заказа
+     * @throws RuntimeException если пользователь или продукт не найдены, либо недостаточно запасов на складе
      */
-//    @Transactional
-//    public OrderDTO createOrder(Long userId, Long productId, int quantity) {
-//        User user = userService.getUserEntityById(userId)
-//                .orElseThrow(() -> new RuntimeException("User not found"));
-//
-//        Product product = productService.getProductById(productId)
-//                .orElseThrow(() -> new RuntimeException("Product not found"));
-//
-//        if (product.getStockQuantity() < quantity) {
-//            throw new RuntimeException("Insufficient stock");
-//        }
-//
-//        Order order = new Order();
-//        order.setUser(user);
-//        order.setProduct(product);
-//        order.setQuantity(quantity);
-//        order.setOrderDate(LocalDateTime.now());
-//        order.setStatus(Status.NEW);
-//
-//        BigDecimal totalPrice = product.getPrice().multiply(BigDecimal.valueOf(quantity));
-//        order.setTotalPrice(totalPrice);
-//
-//        product.setStockQuantity(product.getStockQuantity() - quantity);
-//        productService.updateProduct(product);
-//
-//        Order savedOrder = orderRepository.save(order);
-//        return new OrderDTO(savedOrder);
-//    }
-
     @Transactional
     public OrderDTO createOrder(Long userId, Long productId, int quantity) {
-        // Получение пользователя
+        log.debug("Request to create a new order for user ID: {} and product ID: {}", userId, productId);
+
         User user = userService.getUserEntityById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found")); // Проверяем наличие пользователя
 
-        // Получение продукта
         Product product = productService.getProductEntityById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new RuntimeException("Product not found")); // Проверяем наличие продукта
 
-        // Проверка наличия на складе
         if (product.getStockQuantity() < quantity) {
-            throw new RuntimeException("Insufficient stock");
+            throw new RuntimeException("Insufficient stock for product: " + product.getName()); // Проверяем количество на складе
         }
 
-        // Создание нового заказа
+        // Создаем новый заказ
         Order order = new Order();
         order.setUser(user);
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(Status.NEW);
 
-        // Создание OrderItem для заказа
+        // Создаем элемент заказа и привязываем его к заказу
         OrderItem orderItem = new OrderItem();
         orderItem.setProduct(product);
         orderItem.setQuantity(quantity);
         orderItem.setPrice(product.getPrice()); // Устанавливаем цену товара
 
-        // Добавление элемента заказа к заказу
-        order.addItem(orderItem);
+        order.addItem(orderItem); // Добавляем элемент заказа в заказ
 
-        // Вычисление общей стоимости заказа
+        // Вычисляем общую стоимость заказа
         BigDecimal totalPrice = order.calculateTotalPrice();
         order.setTotalPrice(totalPrice);
 
-        // Обновление количества товара на складе
+        // Обновляем количество товара на складе
         product.setStockQuantity(product.getStockQuantity() - quantity);
-        productService.updateProduct(product.getId(),productService.convertToDTO(product));
+        productService.updateProduct(product.getId(), productService.convertToDTO(product));
 
-        // Сохранение заказа, включая элементы заказа
-        Order savedOrder = orderRepository.save(order);
-        return new OrderDTO(savedOrder);
+        Order savedOrder = orderRepository.save(order); // Сохраняем заказ в базе данных
+        log.info("Заказ успешно создан с ID: {}", savedOrder.getId());
+
+        return new OrderDTO(savedOrder); // Преобразуем сохраненный заказ в DTO и возвращаем
     }
 
-
     /**
-     * Получение всех заказов пользователя
+     * Получает все заказы пользователя.
+     *
+     * @param userId Идентификатор пользователя, чьи заказы необходимо получить
+     * @return Список всех заказов пользователя в формате DTO
      */
-    public List<OrderDTO> getUserOrders(Long userId) {
+    public List<OrderDTO> getOrdersByUserId(Long userId) {
+        log.debug("Запрос на получение всех заказов для пользователя ID: {}", userId);
+
         return orderRepository.findByUserId(userId).stream()
-                .map(OrderDTO::new)
+                .map(OrderDTO::new) // Преобразуем каждый заказ в DTO
                 .collect(Collectors.toList());
     }
 
     /**
-     * Получение заказа по ID
+     * Получает заказ по его идентификатору.
+     *
+     * @param orderId Идентификатор заказа, который необходимо получить
+     * @return Опциональный DTO объект заказа, если он найден
      */
     public Optional<OrderDTO> getOrderById(Long orderId) {
+        log.debug("Запрос на получение заказа ID: {}", orderId);
+
         return orderRepository.findById(orderId)
-                .map(OrderDTO::new);
+                .map(OrderDTO::new); // Преобразуем найденный заказ в DTO
     }
 
     /**
-     * Обновление статуса заказа
+     * Обновляет статус заказа.
+     *
+     * @param orderId Идентификатор заказа, который необходимо обновить
+     * @param status  Новый статус заказа
+     * @return DTO объект обновленного заказа
+     * @throws RuntimeException если заказ не найден
      */
     @Transactional
     public OrderDTO updateOrderStatus(Long orderId, Status status) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+        log.debug("Запрос на обновление статуса заказа с помощью ID: {} to {}", orderId, status);
 
-        order.setStatus(status);
-        Order updatedOrder = orderRepository.save(order);
-        return new OrderDTO(updatedOrder);
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found")); // Проверяем наличие заказа
+
+        order.setStatus(status); // Обновляем статус заказа
+        Order updatedOrder = orderRepository.save(order); // Сохраняем изменения в базе данных
+
+        log.info("Статус заказа успешно обновлен с помощью ID: {} to {}", orderId, status);
+        return new OrderDTO(updatedOrder); // Преобразуем обновленный заказ в DTO и возвращаем
     }
 
-//    /**
-//     * Отмена заказа
-//     */
-//    @Transactional
-//    public OrderDTO cancelOrder(Long orderId) {
-//        Order order = orderRepository.findById(orderId)
-//                .orElseThrow(() -> new RuntimeException("Order not found"));
-//
-//        if (Status.COMPLETED.equals(order.getStatus())) {
-//            throw new RuntimeException("Cannot cancel completed order");
-//        }
-//
-//        Product product = order.getProduct();
-//        product.setStockQuantity(product.getStockQuantity() + order.getQuantity());
-//        productService.updateProduct(product);
-//
-//        order.setStatus(Status.CANCELLED);
-//        Order savedOrder = orderRepository.save(order);
-//        return new OrderDTO(savedOrder);
-//    }
-
     /**
-     * Отмена заказа
+     * Отменяет заказ.
+     *
+     * @param orderId Идентификатор заказа, который необходимо отменить
+     * @return DTO объект отмененного заказа
+     * @throws RuntimeException если заказ не найден или уже завершен
      */
     @Transactional
     public OrderDTO cancelOrder(Long orderId) {
-        // Получаем заказ
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+        log.debug("Запрос на отмену заказа с помощью ID: {}", orderId);
 
-        // Проверяем, можно ли отменить заказ
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Заказ не найден")); // Проверяем наличие заказа
+
         if (Status.COMPLETED.equals(order.getStatus())) {
-            throw new RuntimeException("Cannot cancel completed order");
+            throw new RuntimeException("Cannot cancel completed order"); // Проверяем возможность отмены заказа
         }
 
         // Возвращаем товары на склад для каждого элемента заказа
         for (OrderItem orderItem : order.getItems()) {
             Product product = orderItem.getProduct();
-            // Увеличиваем количество товара на складе
-            product.setStockQuantity(
-                    product.getStockQuantity() + orderItem.getQuantity()
-            );
-            // Обновляем информацию о продукте
-            productService.updateProduct(product.getId(), productService.convertToDTO(product));
+            product.setStockQuantity(product.getStockQuantity() + orderItem.getQuantity()); // Увеличиваем количество товара на складе
+            productService.updateProduct(product.getId(), productService.convertToDTO(product)); // Обновляем информацию о продукте
         }
 
-        // Устанавливаем статус заказа как отмененный
-        order.setStatus(Status.CANCELLED);
+        order.setStatus(Status.CANCELLED); // Устанавливаем статус заказа как отмененный
+        Order savedOrder = orderRepository.save(order); // Сохраняем обновленный заказ в базе данных
 
-        // Сохраняем обновленный заказ
-        Order savedOrder = orderRepository.save(order);
-
-        // Возвращаем DTO отмененного заказа
-        return new OrderDTO(savedOrder);
+        log.info("Successfully cancelled order with ID: {}", orderId);
+        return convertToDTO(savedOrder); // Преобразуем отмененный заказ в DTO и возвращаем
     }
 
     /**
-     * Преобразование Order в OrderDTO
+     * Вспомогательный метод для преобразования объекта Order в DTO.
+     *
+     * @param order Объект заказа, который необходимо преобразовать
+     * @return DTO объект заказа
      */
     private OrderDTO convertToDTO(Order order) {
+        log.debug("Преобразование заказа с помощью ID: {} в DTO", order.getId());
+
         return new OrderDTO(order);
     }
 
     /**
-     * Преобразование списка Orders в список OrderDTOs
+     * Вспомогательный метод для преобразования списка объектов Order в список DTO.
+     *
+     * @param orders Список объектов заказов, которые необходимо преобразовать
+     * @return Список DTO объектов заказов
      */
     private List<OrderDTO> convertToDTOList(List<Order> orders) {
+        log.debug("Конвертирование списка заказаов в DTOs");
+
         return orders.stream()
-                .map(this::convertToDTO)
+                .map(this::convertToDTO) // Преобразуем каждый заказ в DTO
                 .collect(Collectors.toList());
     }
 
-
     /**
-     * Получение списка купленных продуктов пользователем
-     */
-//    public List<Product> getPurchasedProducts(Long userId) {
-////        List<Order> completedOrders = orderRepository.findCompletedOrdersByUserId(userId);
-////
-////        // Преобразуем список заказов в поток, извлекаем продукты и собираем уникальные значения в список
-////        return completedOrders.stream()
-////                .map(Order::getProduct) // Получаем продукт из каждого заказа
-////                .filter(Objects::nonNull) // Исключаем null значения
-////                .distinct() // Убираем дубликаты
-////                .collect(Collectors.toList()); // Собираем результаты в список
-////    }
-
-    /**
-     * Получение списка купленных продуктов пользователем
+     * Получает список всех купленных продуктов пользователем.
+     *
+     * @param userId Идентификатор пользователя, чьи купленные продукты необходимо получить
+     * @return Список всех уникальных продуктов, которые были куплены пользователем
+     * @throws IllegalArgumentException если идентификатор пользователя равен null
      */
     public List<Product> getPurchasedProducts(Long userId) {
+        log.debug("Запрос на получение купленных продуктов для пользователя ID: {}", userId);
+
         if (userId == null) {
-            throw new IllegalArgumentException("User ID must not be null");
+            throw new IllegalArgumentException("Идентификатор пользователя не должен быть null");
         }
 
         try {
             // Получаем все завершенные заказы пользователя
             List<Order> completedOrders = orderRepository.findCompletedOrdersByUserId(userId);
-
             if (completedOrders.isEmpty()) {
+                log.warn("No completed orders found for user ID: {}", userId);
                 return Collections.emptyList(); // Возвращаем пустой список, если нет заказов
             }
 
@@ -255,208 +226,271 @@ public class OrderService {
                     .distinct() // Убираем дубликаты
                     .collect(Collectors.toCollection(ArrayList::new)); // Собираем в ArrayList
         } catch (Exception e) {
-            // Логирование ошибки
-         //   log.error("Error while getting purchased products for user {}: {}", userId, e.getMessage());
+            log.error("Error while getting purchased products for user {}: {}", userId, e.getMessage());
             throw new RuntimeException("Failed to get purchased products", e);
         }
     }
 
     /**
-     * Получение статистики заказов по продукту
+     * Получает количество выполненных заказов для указанного продукта.
+     *
+     * @param productId Идентификатор продукта, для которого необходимо получить количество заказов
+     * @return Количество выполненных заказов для данного продукта
      */
 //    public long getProductOrderCount(Long productId) {
+//        log.debug("Request to get order count for product ID: {}", productId);
+//
 //        return orderRepository.countByProductIdAndStatus(productId, Status.COMPLETED);
 //    }
 
     /**
-     * Получение пагинированного списка всех заказов
+     * Получает пагинированный список всех заказов.
+     *
+     * @param pageable Параметры пагинации
+     * @return Пагинированный список всех заказов в формате DTO
      */
     public Page<OrderDTO> getAllOrders(Pageable pageable) {
-        Page<Order> ordersPage = orderRepository.findAll(pageable);
+        log.debug("Request to get all orders with pagination");
+
+        Page<Order> ordersPage = orderRepository.findAll(pageable); // Получаем страницу заказов
         return ordersPage.map(OrderDTO::new); // Преобразуем каждый заказ в OrderDTO
     }
 
     /**
-     * Получение заказов за определенный период
+     * Получает список заказов за определенный период времени.
+     *
+     * @param startDate Начальная дата диапазона
+     * @param endDate   Конечная дата диапазона
+     * @return Список заказов в указанном диапазоне в формате DTO
      */
     public List<OrderDTO> getOrdersByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
+        log.debug("Request to get orders between dates: {} and {}", startDate, endDate);
+
         return orderRepository.findByOrderDateBetween(startDate, endDate).stream()
                 .map(OrderDTO::new) // Преобразуем заказы в OrderDTO
                 .collect(Collectors.toList());
     }
 
     /**
-     * Проверка, покупал ли пользователь определенный продукт
+     * Проверяет, покупал ли пользователь указанный продукт.
+     *
+     * @param userId    Идентификатор пользователя
+     * @param productId Идентификатор продукта
+     * @return true если пользователь покупал данный продукт, false в противном случае
      */
     public boolean hasUserPurchasedProduct(Long userId, Long productId) {
+        log.debug("Request to check if user with ID: {} has purchased product with ID: {}", userId, productId);
+
         return orderRepository.existsByUser_IdAndItems_Product_IdAndStatus(userId, productId, Status.COMPLETED);
     }
 
     /**
-     * Удалить заказ по ID
+     * Удаляет заказ по его идентификатору.
+     *
+     * @param orderId Идентификатор заказа, который необходимо удалить
+     * @throws OrderNotFoundException если заказ с указанным идентификатором не найден
      */
     @Transactional
-    public void deleteOrder(Long orderId) {
+    public void deleteOrder(Long orderId)  {
+        log.debug("Запрос на удаление заказа с ID: {}", orderId);
+
         if (!orderRepository.existsById(orderId)) {
-            throw new OrderNotFoundException("Order not found with ID: " + orderId);
+            throw new OrderNotFoundException("Заказ не найден с ID: " + orderId);
         }
-        orderRepository.deleteById(orderId);
+
+        if (orderRepository.findById(orderId).get().getStatus()!=Status.CANCELLED) {
+            throw new OrderNotFoundException ("Только отмененные заказы  со статусом CANCELED можно удалить " + orderId);
+        }
+        orderRepository.deleteById(orderId); // Удаляем заказ из базы данных
+        log.info("Заказ успешно удален с помощью ID: {}", orderId);
     }
 
     /**
-     * Расчет общей суммы заказов пользователя
+     * Рассчитывает общую сумму всех выполненных заказов пользователя.
+     *
+     * @param userId Идентификатор пользователя, для которого необходимо рассчитать сумму
+     * @return Общая сумма всех выполненных заказов пользователя
      */
     public BigDecimal calculateUserTotalSpent(Long userId) {
+        log.debug("Request to calculate total spending for user ID: {}", userId);
+
         return orderRepository.findByUserIdAndStatus(userId, Status.COMPLETED).stream()
                 .map(Order::getTotalPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, BigDecimal::add); // Суммируем все стоимости заказов
     }
 
     /**
-     * Расчет средней суммы заказа пользователя
+     * Рассчитывает среднюю сумму заказа пользователя.
+     *
+     * @param userId Идентификатор пользователя, для которого необходимо рассчитать среднее значение
+     * @return Средняя сумма заказа пользователя
      */
     public BigDecimal calculateUserAverageOrderAmount(Long userId) {
-        List<Order> completedOrders = orderRepository.findByUserIdAndStatus(userId, Status.COMPLETED);
+        log.debug("Request to calculate average order amount for user ID: {}", userId);
 
+        List<Order> completedOrders = orderRepository.findByUserIdAndStatus(userId, Status.COMPLETED);
         if (completedOrders.isEmpty()) {
             return BigDecimal.ZERO;
         }
 
         BigDecimal totalSpent = calculateUserTotalSpent(userId);
-        return totalSpent.divide(BigDecimal.valueOf(completedOrders.size()), 2, RoundingMode.HALF_UP);
+        return totalSpent.divide(BigDecimal.valueOf(completedOrders.size()), 2, RoundingMode.HALF_UP); // Вычисляем среднее значение
     }
+//
+//    /**
+//     * Получает статистику заказов пользователя.
+//     *
+//     * @param userId Идентификатор пользователя, для которого необходимо получить статистику
+//     * @return Карта со статистическими данными по заказам пользователя
+//     */
+//    public Map<String, Object> getUserOrderStatistics(Long userId) {
+//        log.debug("Request to get order statistics for user ID: {}", userId);
+//
+//        Map<String, Object> statistics = new HashMap<>();
+//        List<Order> completedOrders = orderRepository.findByUserIdAndStatus(userId, Status.COMPLETED);
+//        BigDecimal totalSpent = calculateUserTotalSpent(userId);
+//        BigDecimal averageOrderAmount = calculateUserAverageOrderAmount(userId);
+//        long totalOrders = orderRepository.countByUserIdAndStatus(userId, Status.COMPLETED);
+//
+//        Optional<BigDecimal> maxOrderAmount = completedOrders.stream()
+//                .map(Order::getTotalPrice)
+//                .max(BigDecimal::compareTo);
+//
+//        Optional<BigDecimal> minOrderAmount = completedOrders.stream()
+//                .map(Order::getTotalPrice)
+//                .min(BigDecimal::compareTo);
+//
+//        statistics.put("totalSpent", totalSpent);
+//        statistics.put("averageOrderAmount", averageOrderAmount);
+//        statistics.put("totalOrders", totalOrders);
+//        statistics.put("maxOrderAmount", maxOrderAmount.orElse(BigDecimal.ZERO));
+//        statistics.put("minOrderAmount", minOrderAmount.orElse(BigDecimal.ZERO));
+//
+//        log.info("Retrieved order statistics for user ID: {}", userId);
+//        return statistics;
+//    }
 
     /**
-     * Получение статистики заказов пользователя
-     */
-    public Map<String, Object> getUserOrderStatistics(Long userId) {
-        Map<String, Object> statistics = new HashMap<>();
-
-        List<Order> completedOrders = orderRepository.findByUserIdAndStatus(userId, Status.COMPLETED);
-
-        BigDecimal totalSpent = calculateUserTotalSpent(userId);
-        BigDecimal averageOrderAmount = calculateUserAverageOrderAmount(userId);
-        long totalOrders = orderRepository.countByUserIdAndStatus(userId, Status.COMPLETED);
-
-        Optional<BigDecimal> maxOrderAmount = completedOrders.stream()
-                .map(Order::getTotalPrice)
-                .max(BigDecimal::compareTo);
-
-        Optional<BigDecimal> minOrderAmount = completedOrders.stream()
-                .map(Order::getTotalPrice)
-                .min(BigDecimal::compareTo);
-
-        statistics.put("totalSpent", totalSpent);
-        statistics.put("averageOrderAmount", averageOrderAmount);
-        statistics.put("totalOrders", totalOrders);
-        statistics.put("maxOrderAmount", maxOrderAmount.orElse(BigDecimal.ZERO));
-        statistics.put("minOrderAmount", minOrderAmount.orElse(BigDecimal.ZERO));
-
-        return statistics;
-    }
-
-    /**
-     * Получение списка заказов по сумме больше указанной
+     * Получает список заказов пользователя, сумма которых больше указанной.
+     *
+     * @param userId Идентификатор пользователя
+     * @param amount Минимальная сумма заказа
+     * @return Список заказов в формате DTO
      */
     public List<OrderDTO> getOrdersAboveAmount(Long userId, BigDecimal amount) {
+        log.debug("Request to get orders above amount: {} for user ID: {}", amount, userId);
+
         return orderRepository.findByUserIdAndStatus(userId, Status.COMPLETED).stream()
-                .filter(order -> order.getTotalPrice().compareTo(amount) > 0)
-                .map(OrderDTO::new) // Преобразуем заказы в OrderDTO
+                .filter(order -> order.getTotalPrice().compareTo(amount) > 0) // Фильтруем заказы по сумме
+                .map(OrderDTO::new) // Преобразуем заказы в DTO
                 .collect(Collectors.toList());
     }
 
     /**
-     * Расчет общей суммы заказов по месяцам
+     * Рассчитывает общую сумму заказов пользователя по месяцам.
+     *
+     * @param userId Идентификатор пользователя
+     * @return Карта с ключами-месяцами и значениями-суммами заказов
      */
     public Map<YearMonth, BigDecimal> calculateMonthlySpending(Long userId) {
+        log.debug("Request to calculate monthly spending for user ID: {}", userId);
+
         return orderRepository.findByUserIdAndStatus(userId, Status.COMPLETED).stream()
                 .collect(Collectors.groupingBy(
-                        order -> YearMonth.from(order.getOrderDate()),
-                        Collectors.reducing(BigDecimal.ZERO, Order::getTotalPrice, BigDecimal::add)
+                        order -> YearMonth.from(order.getOrderDate()), // Группируем заказы по месяцам
+                        Collectors.reducing(BigDecimal.ZERO, Order::getTotalPrice, BigDecimal::add) // Суммируем стоимости заказов
                 ));
     }
 
-    public List<OrderDTO> getOrdersByUserId(Long userId) {
-        return orderRepository.findByUserId(userId).stream()
-                .map(OrderDTO::new) // Преобразуем заказы в OrderDTO
-                .collect(Collectors.toList());
-    }
-
     /**
-     * Получить заказ по ID
+     * Получает заказ по его идентификатору или выбрасывает исключение, если заказ не найден.
      *
      * @param orderId Идентификатор заказа
-     * @return OrderDTO – заказ с указанным ID
+     * @return DTO объект заказа
      * @throws RuntimeException если заказ не найден
      */
     public OrderDTO getOrderByIdOrThrow(Long orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+        log.debug("Request to get order by ID: {}", orderId);
 
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId)); // Проверяем наличие заказа
+
+        log.info("Successfully retrieved order with ID: {}", orderId);
         return new OrderDTO(order); // Преобразуем Order в OrderDTO и возвращаем
     }
 
-    // Создать заказ из всех товаров в корзине
+    /**
+     * Создает новый заказ из всех товаров в корзине пользователя.
+     *
+     * @param userId Идентификатор пользователя, который создает заказ
+     * @return DTO объект созданного заказа
+     * @throws RuntimeException если корзина пуста, либо если один из продуктов в корзине не найден или недостаточно запасов на складе
+     */
     @Transactional
     public OrderDTO createOrderFromCart(Long userId) {
-        // Получить все товары в корзине
-        List<CartItemDTO> cartItems = cartService.getCartItemsForUser(userId);
+        log.debug("Request to create an order from the cart for user ID: {}", userId);
 
+        // Получаем все товары в корзине пользователя
+        List<CartItemDTO> cartItems = cartService.getCartItemsForUser(userId);
         if (cartItems.isEmpty()) {
             throw new RuntimeException("Cart is empty, cannot create order");
         }
 
-        // Создать новый заказ
+        // Создаем новый заказ
         Order order = new Order();
-        order.setUser(userService.getUserEntityById(userId).orElseThrow());
+        order.setUser(userService.getUserEntityById(userId).orElseThrow(() -> new RuntimeException("User not found"))); // Привязываем пользователя к заказу
         order.setStatus(Status.NEW);
         order.setOrderDate(LocalDateTime.now());
 
         // Создаем и добавляем элементы заказа
-        cartItems.forEach(cartItem -> {
-            // Проверяем наличие продукта
+        for (CartItemDTO cartItem : cartItems) {
             Product product = productService.getProductEntityById(cartItem.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found: " + cartItem.getProductId()));
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + cartItem.getProductId())); // Проверяем наличие продукта
 
-            // Проверяем количество на складе
             if (product.getStockQuantity() < cartItem.getQuantity()) {
-                throw new RuntimeException("Insufficient stock for product: " + product.getName());
+                throw new RuntimeException("Insufficient stock for product: " + product.getName()); // Проверяем количество на складе
             }
 
-            // Уменьшаем количество на складе
+            // Уменьшаем количество товара на складе
             product.setStockQuantity(product.getStockQuantity() - cartItem.getQuantity());
-            productService.updateProduct(product.getId(), productService.convertToDTO(product));
+            productService.updateProduct(product.getId(), productService.convertToDTO(product)); // Обновляем информацию о продукте
 
-            // Создаем OrderItem и устанавливаем двустороннюю связь
+            // Создаем OrderItem и привязываем его к заказу
             OrderItem orderItem = OrderItem.builder()
                     .product(product)
                     .quantity(cartItem.getQuantity())
                     .price(cartItem.getPrice())
                     .build();
 
-            // Важно: устанавливаем двустороннюю связь
-            order.addItem(orderItem);
-        });
+            order.addItem(orderItem); // Добавляем элемент заказа в заказ
+        }
 
-        // Рассчитываем общую стоимость
+        // Рассчитываем общую стоимость заказа
         order.setTotalPrice(order.calculateTotalPrice());
 
-        // Сохраняем заказ
+        // Сохраняем заказ в базе данных
         Order savedOrder = orderRepository.save(order);
+        log.info("Successfully created order with ID: {} from user's cart", savedOrder.getId());
 
-        // Очищаем корзину
+        // Очищаем корзину пользователя после успешного создания заказа
         cartService.clearCartForUser(userId);
 
-        //Устанавливаем рейтинг по умолчанию
-        saveRatingsForOrder(order);
+        // Устанавливаем рейтинги товарам в заказе
+        saveRatingsForOrder(savedOrder);
 
-        // Конвертируем в DTO и возвращаем
+        // Преобразуем заказ в DTO и возвращаем
         return convertOrderToDTO(savedOrder);
     }
 
-
-
+    /**
+     * Вспомогательный метод для преобразования объекта Order в DTO.
+     *
+     * @param order Объект заказа, который необходимо преобразовать
+     * @return DTO объект заказа
+     */
     private OrderDTO convertOrderToDTO(Order order) {
+        log.debug("Converting order with ID: {} to DTO", order.getId());
+
         List<OrderItemDTO> itemsDto = order.getItems().stream()
                 .map(item -> new OrderItemDTO(
                         item.getId(),
@@ -465,7 +499,6 @@ public class OrderService {
                         item.getProduct().getName(),
                         item.getQuantity(),
                         item.getPrice()
- //                       item.getTotalPrice()
                 ))
                 .collect(Collectors.toList());
 
@@ -480,27 +513,26 @@ public class OrderService {
     }
 
     /**
-     * Устанавливаем рейтинг товарам заказа
+     * Устанавливает рейтинги товарам в заказе.
      *
-
+     * @param order Объект заказа, для которого необходимо установить рейтинги
      */
     private void saveRatingsForOrder(Order order) {
         log.info("Saving ratings for order: {}", order.getId());
+
         for (OrderItem item : order.getItems()) {
             RatingDTO ratingDTO = RatingDTO.builder()
                     .userId(order.getUser().getId())
                     .itemId(item.getProduct().getId())
-                    .rating(item.getProduct().getPopularity())
+                    .rating(item.getProduct().getPopularity()) // Можно использовать другие метрики для рейтинга
                     .build();
 
             try {
                 Rating savedRating = ratingService.saveRating(ratingDTO);
                 log.info("Saved rating: {}", savedRating);
             } catch (Exception e) {
-                log.error("Error saving rating for product {} in order {}: {}",
-                        item.getProduct().getId(), order.getId(), e.getMessage());
+                log.error("Error saving rating for product {} in order {}: {}", item.getProduct().getId(), order.getId(), e.getMessage());
             }
         }
     }
-
 }

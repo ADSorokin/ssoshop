@@ -1,3 +1,7 @@
+
+/**
+ * Пакет для DTO (Data Transfer Objects) приложения.
+ */
 package ru.alexds.ccoshop.dto;
 
 import jakarta.validation.constraints.*;
@@ -5,21 +9,50 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.util.List;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+/**
+ * Класс CreateClusterDTO представляет собой DTO (Data Transfer Object), используемый для передачи данных о создании нового кластера между слоями приложения.
+ * Этот класс используется для упрощения и защиты передачи данных, избегая передачи ненужных или чувствительных полей.
+ * Для удобства использования Lombok генерирует геттеры, сеттеры, equals, hashCode и toString методы,
+ * а также пустой, полностью параметризованный конструкторы и builder-конструктор.
+ * Аннотации валидации используются для проверки входных данных.
+ */
+@Data // Генерирует геттеры, сеттеры, equals, hashCode и toString
+@Builder // Генерирует builder-конструктор для удобного создания объектов
+@NoArgsConstructor // Генерирует пустой конструктор
+@AllArgsConstructor // Генерирует конструктор с аргументами
 public class CreateClusterDTO {
-    @NotBlank(message = "Name is required")
+
+    /**
+     * Название кластера.
+     * Поле не может быть пустым или содержать только пробелы.
+     * Аннотация @NotBlank проверяет, чтобы строка была не пустой и не содержала только пробелы.
+     * Сообщение об ошибке: "Имя требуется".
+     */
+    @NotBlank(message = "Имя требуется")
     private String name;
 
-    @NotEmpty(message = "Weights are required")
+    /**
+     * Веса (координаты) кластера.
+     * Это коллекция значений типа Double, представляющая веса или координаты кластера.
+     * Поле не может быть пустым.
+     * Аннотация @NotEmpty проверяет, чтобы коллекция была не пустой.
+     * Сообщение об ошибке: "Требуются веса".
+     */
+    @NotEmpty(message = "Требуются веса")
     private List<Double> weights;
 
-    @NotNull(message = "Vigilance parameter is required")
+    /**
+     * Параметр бдительности (vigilance).
+     * Это числовое значение, представляющее параметр бдительности кластера.
+     * Поле не может быть null и должно находиться в диапазоне от 0 до 1 включительно.
+     * Аннотация @NotNull проверяет, чтобы поле было заполнено.
+     * Аннотация @Min проверяет, чтобы значение было не меньше 0.
+     * Аннотация @Max проверяет, чтобы значение было не больше 1.
+     * Сообщения об ошибках: "Требуется параметр бдительности.", "Vigilance must be >= 0", "Vigilance must be <= 1".
+     */
+    @NotNull(message = "Требуется параметр бдительности.")
     @Min(value = 0, message = "Vigilance must be >= 0")
     @Max(value = 1, message = "Vigilance must be <= 1")
     private Double vigilance;

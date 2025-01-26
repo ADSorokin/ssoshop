@@ -13,8 +13,8 @@ import java.util.List;
 
 @Entity
 @Table(name = "categories")
-@Data // Генерирует геттеры, сеттеры и другие методы, такие как toString, equals и hashCode
-@NoArgsConstructor // Генерирует пустой конструктор
+@Data
+@NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Category {
@@ -35,15 +35,5 @@ public class Category {
         this.id = id;
     }
 
-//    // Метод для добавления продукта в категорию
-//    public void addProduct(Product product) {
-//        products.add(product);
-//        product.setCategory(this); // Устанавливаем связь обратно
-//    }
-//
-//    // Метод для удаления продукта из категории
-//    public void removeProduct(Product product) {
-//        products.remove(product);
-//        product.setCategory(null); // Убираем связь
-//    }
+
 }

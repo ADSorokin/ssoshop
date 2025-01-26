@@ -10,18 +10,15 @@ import org.apache.mahout.cf.taste.impl.neighborhood.NearestNUserNeighborhood;
 import org.apache.mahout.cf.taste.impl.recommender.GenericItemBasedRecommender;
 import org.apache.mahout.cf.taste.impl.recommender.GenericUserBasedRecommender;
 import org.apache.mahout.cf.taste.impl.similarity.EuclideanDistanceSimilarity;
-import org.apache.mahout.cf.taste.impl.similarity.LogLikelihoodSimilarity;
-import org.apache.mahout.cf.taste.impl.similarity.SpearmanCorrelationSimilarity;
-import org.apache.mahout.cf.taste.impl.similarity.TanimotoCoefficientSimilarity;
 import org.apache.mahout.cf.taste.model.DataModel;
 import org.apache.mahout.cf.taste.neighborhood.UserNeighborhood;
 import org.apache.mahout.cf.taste.recommender.RecommendedItem;
 import org.apache.mahout.cf.taste.similarity.ItemSimilarity;
 import org.springframework.stereotype.Service;
+import ru.alexds.ccoshop.dto.ProductDTO;
 import ru.alexds.ccoshop.dto.RecommendationDTO;
 import ru.alexds.ccoshop.entity.ARTClusterEntity;
 import ru.alexds.ccoshop.entity.Rating;
-import ru.alexds.ccoshop.repository.ProductRepository;
 import ru.alexds.ccoshop.repository.RatingRepository;
 
 import javax.sql.DataSource;
@@ -32,34 +29,44 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+
+/**
+ * Сервис для управления рекомендациями.
+ * Обеспечивает API для генерации User-Based, Item-Based и ART-Based рекомендаций,
+ * а также для объединения этих рекомендаций и нормализации рейтингов.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RecommendationService {
-
     private final DataSource dataSource; // JDBC источник данных для Mahout
-    private final RatingRepository ratingRepository; // Репозиторий для хранения рейтингов
+    public final RatingRepository ratingRepository; // Репозиторий для хранения рейтингов
     private final ARTClusterService artClusterService; // Сервис для управления ART-кластерами
-    private final RatingService ratingService;
-    private final ProductService productService;
 
-    private DataModel dataModel; // Модель данных Mahout
+    public final ProductService productService;
+
+    public DataModel dataModel; // Модель данных Mahout
     private List<ARTClusterEntity> artClusters = new ArrayList<>(); // Список ART-кластеров
 
-    private static final double VIGILANCE_PARAMETER = 0.6;
-    private static final double LEARNING_RATE = 0.1;
-    private static final int NEIGHBORHOOD_SIZE = 7;
+    private static final double VIGILANCE_PARAMETER = 0.6; // Параметр бдительности для ART кластеризации
+    private static final double LEARNING_RATE = 0.1; // Коэффициент обучения для ART кластеризации
+    private static final int NEIGHBORHOOD_SIZE = 7; // Размер соседства для User-Based рекомендаций
 
     /**
      * Инициализация модели Mahout и загрузка ART-кластеров из базы при старте приложения.
+     *
+     * @throws TasteException если произошла ошибка при инициализации модели данных или загрузке кластеров
      */
     @PostConstruct
     public void init() throws TasteException {
+        log.debug("Initializing RecommendationService");
+
         // Инициализация Mahout DataModel через подключение к базе данных
         dataModel = new MySQLJDBCDataModel(dataSource, "ratings", "user_id", "item_id", "rating", "timestamp");
 
         // Загрузка всех ART кластеров из базы данных
         artClusters = artClusterService.getAllClusters();
+
         // Логируем количество пользователей и товаров в модели данных
         try (Connection connection = dataSource.getConnection()) {
             PreparedStatement stmt = connection.prepareStatement("SELECT COUNT(DISTINCT user_id) AS user_count, COUNT(DISTINCT item_id) AS item_count FROM ratings");
@@ -74,15 +81,18 @@ public class RecommendationService {
     }
 
     /**
-     * Генерация User-Based рекомендаций.
+     * Генерация User-Based рекомендаций для указанного пользователя.
+     *
+     * @param userId             Идентификатор пользователя, для которого необходимо сформировать рекомендации
+     * @param numRecommendations Количество рекомендаций для возврата
+     * @return Список рекомендаций в формате DTO
+     * @throws TasteException если произошла ошибка при вычислении рекомендаций
      */
     public List<RecommendationDTO> getUserBasedRecommendations(Long userId, int numRecommendations) throws TasteException {
+        log.debug("Request to get user-based recommendations for user ID: {}", userId);
+
         // Создаем объект Similarity для определения похожести между пользователями
-        //PearsonCorrelationSimilarity similarity = new PearsonCorrelationSimilarity(dataModel);
         EuclideanDistanceSimilarity similarity = new EuclideanDistanceSimilarity(dataModel);
-        //SpearmanCorrelationSimilarity similarity = new SpearmanCorrelationSimilarity(dataModel);
-        //TanimotoCoefficientSimilarity similarity = new TanimotoCoefficientSimilarity(dataModel);
-        //LogLikelihoodSimilarity similarity = new LogLikelihoodSimilarity(dataModel);
 
         // Формируем соседство пользователей
         UserNeighborhood neighborhood = new NearestNUserNeighborhood(NEIGHBORHOOD_SIZE, similarity, dataModel);
@@ -102,15 +112,19 @@ public class RecommendationService {
     }
 
     /**
-     * Генерация Item-Based рекомендаций.
+     * Генерация Item-Based рекомендаций для указанного товара.
+     *
+     * @param itemId             Идентификатор товара, для которого необходимо найти похожие товары
+     * @param numRecommendations Количество рекомендаций для возврата
+     * @return Список рекомендаций в формате DTO
+     * @throws TasteException если произошла ошибка при вычислении рекомендаций
      */
     public List<RecommendationDTO> getItemBasedRecommendations(Long itemId, int numRecommendations) throws TasteException {
+        log.debug("Request to get item-based recommendations for item ID: {}", itemId);
+
         // Используем сходство на основе Item для определения похожих товаров
-        //ItemSimilarity similarity = new PearsonCorrelationSimilarity(dataModel);
-        //ItemSimilarity similarity = new TanimotoCoefficientSimilarity(dataModel);
-        //ItemSimilarity similarity = new EuclideanDistanceSimilarity(dataModel);
-        // Вызываем свой кастомный метод
-       ItemSimilarity similarity = new AdjustedCosineSimilarity(dataModel);
+        ItemSimilarity similarity = new AdjustedCosineSimilarity(dataModel);
+
         // Создаем Item-Based рекомендатель
         GenericItemBasedRecommender recommender = new GenericItemBasedRecommender(dataModel, similarity);
 
@@ -122,16 +136,21 @@ public class RecommendationService {
     }
 
     /**
-     * Генерация ART рекомендаций на основе кластеров.
+     * Генерация ART-Based рекомендаций на основе кластеров.
+     *
+     * @param userId Идентификатор пользователя, для которого необходимо сформировать рекомендации
+     * @return Список рекомендаций в формате DTO
      */
     public List<RecommendationDTO> getARTRecommendations(Long userId) {
+        log.debug("Request to get ART-based recommendations for user ID: {}", userId);
+
         // Генерируем вектор пользователя
         double[] userVector = createUserVector(userId);
 
         // Находим лучший кластер
         ARTClusterEntity bestCluster = findBestCluster(userVector);
-
         if (bestCluster == null) {
+            log.warn("No suitable cluster found for user ID: {}, creating a new one", userId);
             // Если подходящего кластера нет, создаем новый
             bestCluster = new ARTClusterEntity();
             bestCluster.setWeights(Arrays.asList(Arrays.stream(userVector).boxed().toArray(Double[]::new)));
@@ -141,45 +160,173 @@ public class RecommendationService {
             artClusterService.saveCluster(bestCluster);
             artClusters.add(bestCluster);
         } else {
+            log.debug("Updating existing cluster for user ID: {}", userId);
             // Обновляем обучением веса кластера
             adaptClusterWeights(bestCluster, userVector);
             artClusterService.saveCluster(bestCluster);
         }
 
         // Генерируем рекомендации из данного кластера
-        return generateRecommendationsFromCluster(bestCluster);
+        List<RecommendationDTO> recommendations = generateRecommendationsFromCluster(bestCluster, userId);
+        return normalizeRatings(recommendations); // Нормализуем рейтинги перед возвратом
     }
 
     /**
      * Поиск подходящего кластера для пользователя (ART1).
+     *
+     * @param userVector Вектор пользователя, который необходимо сравнить с кластерами
+     * @return ART-кластер, если найден, или null в противном случае
      */
     private ARTClusterEntity findBestCluster(double[] userVector) {
-        return artClusters.stream().filter(cluster -> matchCluster(cluster, userVector) >= VIGILANCE_PARAMETER).findFirst().orElse(null);
+        log.debug("Finding the best ART cluster for user vector: {}", Arrays.toString(userVector));
+
+        return artClusters.stream()
+                .filter(cluster -> matchCluster(cluster, userVector) >= VIGILANCE_PARAMETER)
+                .findFirst()
+                .orElse(null);
     }
 
     /**
-     * Генерация рекомендаций из кластера.
+     * Генерация рекомендаций из кластера с учетом скоринга похожести как у Mahout.
+     *
+     * @param cluster ART-кластер, из которого необходимо получить рекомендации
+     * @param userId  Идентификатор пользователя, для которого формируются рекомендации
+     * @return Список рекомендаций в формате DTO
      */
-    private List<RecommendationDTO> generateRecommendationsFromCluster(ARTClusterEntity cluster) {
+    private List<RecommendationDTO> generateRecommendationsFromCluster(ARTClusterEntity cluster, Long userId) {
+        log.debug("Generating recommendations from cluster: {} for user ID: {}", cluster.getId(), userId);
+
         // Найдем товары, которыми интересуются пользователи из текущего кластера
-        Set<Long> productIds = cluster.getUserIds().stream().flatMap(userId -> ratingRepository.findByUserId(userId).stream()).map(Rating::getItemId) // Собираем все товары
+        Set<Long> productIds = cluster.getUserIds().stream()
+                .flatMap(otherUserId -> ratingRepository.findByUserId(otherUserId).stream())
+                .map(Rating::getItemId) // Собираем все товары
                 .collect(Collectors.toSet());
 
-        // Преобразуем в список `RecommendationDTO`
-        return productIds.stream().map(productId -> new RecommendationDTO(productId,
-                        productService.getProductById(productId).get().getName(),
-                        ratingService.getAverageRatingByItem(ratingService.getRatingsByItem(productId)))) // Можно заменить имя товара из ProductService
+        // Получим все товары, с которыми взаимодействовал текущий пользователь
+        List<Long> userProductIds = ratingRepository.findByUserId(userId).stream()
+                .map(Rating::getItemId)
+                .collect(Collectors.toList());
+
+        // Преобразуем в список `RecommendationDTO` с расчетом рейтинга похожести
+        return productIds.stream()
+                .map(productId -> {
+                    // Получаем информацию о товаре
+                    ProductDTO product = productService.getProductById(productId)
+                            .orElseThrow(() -> new RuntimeException("Product not found"));
+
+                    // Рассчитываем рейтинг похожести с текущим пользователем
+                    double similarityScore = calculateSimilarityScore(productId, userProductIds);
+
+                    // Формируем DTO
+                    return new RecommendationDTO(productId, product.getName(), similarityScore);
+                })
+                .sorted(Comparator.comparingDouble(RecommendationDTO::getRating).reversed()) // Сортируем по убыванию похожести
                 .collect(Collectors.toList());
     }
 
     /**
-     * Сравнение вектора пользователя с кластером (метод ART1).
+     * Рассчитывает рейтинг похожести товара на основе метрик, схожих с Mahout.
+     * Использует косинусное сходство между векторами рейтингов.
+     *
+     * @param productId      ID текущего товара для оценки
+     * @param userProductIds список ID товаров, которыми интересуется пользователь
+     * @return рейтинг похожести в диапазоне [0,1], где 1 означает полное сходство
      */
-    private double matchCluster(ARTClusterEntity cluster, double[] userVector) {
+    public double calculateSimilarityScore(Long productId, List<Long> userProductIds) {
+        // Находим рейтинг других пользователей для данного товара
+        List<Rating> itemRatings = ratingRepository.findByItemId(productId);
+
+        // Вычисляем сумму отклонений рейтингов от среднего рейтинга
+        double numerator = 0.0; // Числитель
+        double denominator = 0.0; // Знаменатель
+
+        for (Rating rating : itemRatings) {
+            // Проверяем, есть ли совпадение с товарами пользователя
+            if (userProductIds.contains(rating.getItemId())) {
+                double averageUserRating = getUserAverageRating(rating.getUserId()); // Средний рейтинг пользователя
+                numerator += (rating.getRating() - averageUserRating) * (rating.getRating() - averageUserRating);
+                denominator += Math.pow((rating.getRating() - averageUserRating), 2);
+            }
+        }
+
+        return denominator == 0 ? 0 : numerator / Math.sqrt(denominator); // Возвращаем рейтинг похожести
+    }
+
+    /**
+     * Вычисляет средний рейтинг для заданного пользователя.
+     *
+     * @param userId ID пользователя
+     * @return средний рейтинг пользователя или 0.0, если рейтингов нет
+     */
+    private double getUserAverageRating(Long userId) {
+        List<Rating> ratings = ratingRepository.findByUserId(userId);
+        return ratings.stream()
+                .mapToDouble(Rating::getRating)
+                .average()
+                .orElse(0.0);
+    }
+
+    /**
+     * Нормализует рейтинги рекомендаций в диапазоне [0.1, 9.9].
+     * Использует линейное масштабирование для преобразования исходных рейтингов.
+     *
+     * @param recommendations список рекомендаций для нормализации
+     * @return список рекомендаций с нормализованными рейтингами
+     */
+    public List<RecommendationDTO> normalizeRatings(List<RecommendationDTO> recommendations) {
+        if (recommendations.isEmpty()) {
+            return recommendations; // Если список пустой, возвращаем его без изменений
+        }
+
+        double minRating = recommendations.stream()
+                .mapToDouble(RecommendationDTO::getRating)
+                .min()
+                .orElse(0.0);
+        double maxRating = recommendations.stream()
+                .mapToDouble(RecommendationDTO::getRating)
+                .max()
+                .orElse(1.0);
+
+        double newMin = 0.1;
+        double newMax = 9.9;
+
+        return recommendations.stream().map(recommendation -> {
+            double normalizedRating = newMin + ((recommendation.getRating() - minRating) * (newMax - newMin)) / (maxRating - minRating);
+            return new RecommendationDTO(recommendation.getItemId(), recommendation.getItemName(), normalizedRating);
+        }).collect(Collectors.toList());
+    }
+
+
+    /**
+     * Нормализует шкалу score от 1 до 10.
+     *
+     * @param score    Исходный рейтинг
+     * @param minScore Минимальное значение в наборе
+     * @param maxScore Максимальное значение в наборе
+     * @return Нормализованное значение
+     */
+    private double normalizeScore(double score, double minScore, double maxScore) {
+        if (maxScore == minScore) {
+            // Если все значения одинаковы, возвращаем 5 (средняя оценка на шкале от 1 до 10)
+            return 5.0;
+        }
+        return 1 + ((score - minScore) * 9) / (maxScore - minScore); // Нормализация от 1 до 10
+    }
+
+
+    /**
+     * Вычисляет степень соответствия вектора пользователя кластеру по алгоритму ART1.
+     * Использует косинусное сходство между векторами.
+     *
+     * @param cluster    кластер для сравнения
+     * @param userVector вектор предпочтений пользователя
+     * @return значение сходства в диапазоне [0,1]
+     */
+    public double matchCluster(ARTClusterEntity cluster, double[] userVector) {
         List<Double> weights = cluster.getWeights();
         if (weights.isEmpty() || weights.size() < userVector.length) { // Если веса еще не инициализированы
-            for (int i = 0; i < userVector.length; i++) {
-                weights.add(userVector[i]); // Инициализация весов вектора пользователя для нового кластера
+            for (double v : userVector) {
+                weights.add(v); // Инициализация весов вектора пользователя для нового кластера
             }
         }
         double dotProduct = 0.0;
@@ -199,9 +346,13 @@ public class RecommendationService {
     }
 
     /**
-     * Обновление весов кластера с учетом вектора пользователя (адаптация ART1).
+     * Обновляет веса кластера с учетом нового вектора пользователя.
+     * Использует правило обучения ART1 с заданным коэффициентом обучения.
+     *
+     * @param cluster    кластер для обновления
+     * @param userVector вектор предпочтений пользователя
      */
-    private void adaptClusterWeights(ARTClusterEntity cluster, double[] userVector) {
+    public void adaptClusterWeights(ARTClusterEntity cluster, double[] userVector) {
         List<Double> updatedWeights = new ArrayList<>();
         List<Double> currentWeights = cluster.getWeights();
 
@@ -214,19 +365,23 @@ public class RecommendationService {
     }
 
     /**
-     * Создание вектора пользователя на основе рейтингов из базы данных.
+     * Создает бинарный вектор предпочтений пользователя на основе его рейтингов.
+     * Размерность вектора определяется максимальным ID товара в системе.
+     *
+     * @param userId ID пользователя
+     * @return бинарный вектор предпочтений, где 1 означает интерес к товару
      */
-    private double[] createUserVector(Long userId) {
+    public double[] createUserVector(Long userId) {
         // Получаем все рейтинги пользователя
         List<Rating> ratings = ratingRepository.findByUserId(userId);
 
         // Создаем вектор, длина которого равна количеству товаров в системе
-        int vectorSize = (int) ratingRepository.count(); // Можно заменить на количество уникальных товаров
+        int vectorSize = Math.toIntExact(ratingRepository.findMaxItemId()); // Можно заменить на количество уникальных товаров
         double[] vector = new double[vectorSize];
         System.out.println(vectorSize);
 
         for (Rating rating : ratings) {
-            vector[rating.getItemId().intValue() - 1 - 100] = 1.0; // Простое бинарное представление 101 первый индекс так получилось
+            vector[rating.getItemId().intValue() - 1] = 1.0; // Простое бинарное представление
             System.out.println(rating.getItemId());
         }
 
@@ -234,7 +389,15 @@ public class RecommendationService {
     }
 
 
-    // Метод для объединения User-Based и ART-Based рекомендаций
+    /**
+     * Объединяет рекомендации, полученные разными методами (User-Based и ART-Based).
+     * При конфликтах выбирает рекомендацию с наивысшим рейтингом.
+     *
+     * @param userBased          рекомендации на основе коллаборативной фильтрации
+     * @param artBased           рекомендации на основе ART-кластеризации
+     * @param numRecommendations максимальное количество рекомендаций в результате
+     * @return отсортированный список топ-N рекомендаций
+     */
     public List<RecommendationDTO> mergeRecommendations(List<RecommendationDTO> userBased,
                                                         List<RecommendationDTO> artBased,
                                                         int numRecommendations) {
@@ -264,7 +427,12 @@ public class RecommendationService {
 
 
     /**
-     * Преобразование Mahout RecommendedItem в RecommendationDTO.
+     * Преобразует рекомендации из формата Mahout в DTO объекты.
+     * Дополняет рекомендации информацией о названии товара.
+     *
+     * @param recommendedItems список рекомендаций в формате Mahout
+     * @return список рекомендаций в формате DTO
+     * @throws NoSuchElementException если товар не найден в базе данных
      */
     private List<RecommendationDTO> mapRecommendationsToDTO(List<RecommendedItem> recommendedItems) {
         System.out.println(recommendedItems);
