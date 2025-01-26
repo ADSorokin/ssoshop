@@ -13,6 +13,7 @@ import java.math.RoundingMode;
  */
 public class PriceUtils {
 
+
     /**
      * Метод для проверки, является ли значение value1 больше значения value2.
      *
