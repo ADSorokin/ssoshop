@@ -290,6 +290,7 @@ public class ProductService {
                 .stockQuantity(productDTO.getStockQuantity())
                 .imagePath(productDTO.getImagePath())
                 .category(category)
+                .characteristics(productDTO.getCharacteristic())
                 .popularity(productDTO.getPopularity())
                 .build();
 
@@ -366,6 +367,7 @@ public class ProductService {
                 .imagePath(product.getImagePath())
                 .categoryId(product.getCategory().getId())
                 .popularity(product.getPopularity())
+                .characteristic(product.getCharacteristics())
                 .createAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .build();

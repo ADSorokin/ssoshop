@@ -29,6 +29,8 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.uncommons.maths.Maths.log;
+
 
 /**
  * Сервис для управления рекомендациями.
@@ -59,7 +61,7 @@ public class RecommendationService {
      */
     @PostConstruct
     public void init() throws TasteException {
-        log.debug("Initializing RecommendationService");
+        RecommendationService.log.debug("Initializing RecommendationService");
 
         // Инициализация Mahout DataModel через подключение к базе данных
         dataModel = new MySQLJDBCDataModel(dataSource, "ratings", "user_id", "item_id", "rating", "timestamp");
@@ -72,11 +74,11 @@ public class RecommendationService {
             PreparedStatement stmt = connection.prepareStatement("SELECT COUNT(DISTINCT user_id) AS user_count, COUNT(DISTINCT item_id) AS item_count FROM ratings");
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
-                log.info("Number of users: {}", rs.getInt("user_count"));
-                log.info("Number of items: {}", rs.getInt("item_count"));
+                RecommendationService.log.info("Number of users: {}", rs.getInt("user_count"));
+                RecommendationService.log.info("Number of items: {}", rs.getInt("item_count"));
             }
         } catch (SQLException e) {
-            log.error("Error fetching data from database", e);
+            RecommendationService.log.error("Error fetching data from database", e);
         }
     }
 
@@ -89,7 +91,7 @@ public class RecommendationService {
      * @throws TasteException если произошла ошибка при вычислении рекомендаций
      */
     public List<RecommendationDTO> getUserBasedRecommendations(Long userId, int numRecommendations) throws TasteException {
-        log.debug("Request to get user-based recommendations for user ID: {}", userId);
+        RecommendationService.log.debug("Запрос на получение пользовательских рекомендаций для пользователя ID: {}", userId);
 
         // Создаем объект Similarity для определения похожести между пользователями
         EuclideanDistanceSimilarity similarity = new EuclideanDistanceSimilarity(dataModel);
@@ -105,7 +107,7 @@ public class RecommendationService {
 
         // Логируем количество соседей для текущего пользователя
         long[] neighborIds = neighborhood.getUserNeighborhood(userId);
-        log.info("Number of neighbors for user {}: {}", userId, neighborIds.length);
+        RecommendationService.log.info("Количество соседей для пользователя {}: {}", userId, neighborIds.length);
 
         // Преобразуем список в рекомендационные DTO
         return mapRecommendationsToDTO(recommendedItems);
@@ -120,7 +122,7 @@ public class RecommendationService {
      * @throws TasteException если произошла ошибка при вычислении рекомендаций
      */
     public List<RecommendationDTO> getItemBasedRecommendations(Long itemId, int numRecommendations) throws TasteException {
-        log.debug("Request to get item-based recommendations for item ID: {}", itemId);
+        RecommendationService.log.debug("Запросить рекомендации по товару ID: {}", itemId);
 
         // Используем сходство на основе Item для определения похожих товаров
         ItemSimilarity similarity = new AdjustedCosineSimilarity(dataModel);
@@ -142,7 +144,7 @@ public class RecommendationService {
      * @return Список рекомендаций в формате DTO
      */
     public List<RecommendationDTO> getARTRecommendations(Long userId) {
-        log.debug("Request to get ART-based recommendations for user ID: {}", userId);
+        RecommendationService.log.debug("Запрос на получение рекомендаций на основе ART для пользователя ID: {}", userId);
 
         // Генерируем вектор пользователя
         double[] userVector = createUserVector(userId);
@@ -150,7 +152,7 @@ public class RecommendationService {
         // Находим лучший кластер
         ARTClusterEntity bestCluster = findBestCluster(userVector);
         if (bestCluster == null) {
-            log.warn("No suitable cluster found for user ID: {}, creating a new one", userId);
+            RecommendationService.log.warn("Для пользователя не найден подходящий кластер ID: {}, creating a new one", userId);
             // Если подходящего кластера нет, создаем новый
             bestCluster = new ARTClusterEntity();
             bestCluster.setWeights(Arrays.asList(Arrays.stream(userVector).boxed().toArray(Double[]::new)));
@@ -160,7 +162,7 @@ public class RecommendationService {
             artClusterService.saveCluster(bestCluster);
             artClusters.add(bestCluster);
         } else {
-            log.debug("Updating existing cluster for user ID: {}", userId);
+            RecommendationService.log.debug("Обновление существующего кластера для пользователя ID: {}", userId);
             // Обновляем обучением веса кластера
             adaptClusterWeights(bestCluster, userVector);
             artClusterService.saveCluster(bestCluster);
@@ -178,7 +180,7 @@ public class RecommendationService {
      * @return ART-кластер, если найден, или null в противном случае
      */
     private ARTClusterEntity findBestCluster(double[] userVector) {
-        log.debug("Finding the best ART cluster for user vector: {}", Arrays.toString(userVector));
+        RecommendationService.log.debug("Поиск лучшего кластера ART для пользовательского вектора: {}", Arrays.toString(userVector));
 
         return artClusters.stream()
                 .filter(cluster -> matchCluster(cluster, userVector) >= VIGILANCE_PARAMETER)
@@ -194,7 +196,7 @@ public class RecommendationService {
      * @return Список рекомендаций в формате DTO
      */
     private List<RecommendationDTO> generateRecommendationsFromCluster(ARTClusterEntity cluster, Long userId) {
-        log.debug("Generating recommendations from cluster: {} for user ID: {}", cluster.getId(), userId);
+        RecommendationService.log.debug("Генерация рекомендаций из кластера: {}для пользователя ID: {}", cluster.getId(), userId);
 
         // Найдем товары, которыми интересуются пользователи из текущего кластера
         Set<Long> productIds = cluster.getUserIds().stream()
@@ -232,24 +234,56 @@ public class RecommendationService {
      * @param userProductIds список ID товаров, которыми интересуется пользователь
      * @return рейтинг похожести в диапазоне [0,1], где 1 означает полное сходство
      */
+
+
     public double calculateSimilarityScore(Long productId, List<Long> userProductIds) {
         // Находим рейтинг других пользователей для данного товара
         List<Rating> itemRatings = ratingRepository.findByItemId(productId);
+        // Получаем метаданные товара
+        ProductDTO product = productService.getProductById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
 
         // Вычисляем сумму отклонений рейтингов от среднего рейтинга
         double numerator = 0.0; // Числитель
         double denominator = 0.0; // Знаменатель
 
+
+
         for (Rating rating : itemRatings) {
-            // Проверяем, есть ли совпадение с товарами пользователя
             if (userProductIds.contains(rating.getItemId())) {
                 double averageUserRating = getUserAverageRating(rating.getUserId()); // Средний рейтинг пользователя
                 numerator += (rating.getRating() - averageUserRating) * (rating.getRating() - averageUserRating);
                 denominator += Math.pow((rating.getRating() - averageUserRating), 2);
-            }
-        }
 
+                // Учитываем метаданные
+                ProductDTO otherProduct = productService.getProductById(rating.getItemId())
+                        .orElseThrow(() -> new RuntimeException("Продукт не найден"));
+                double metadataSimilarity = calculateMetadataSimilarity(product, otherProduct);
+                if (metadataSimilarity > 0) {
+                    denominator *= metadataSimilarity;
+                }
+
+
+                }
+
+
+        }
         return denominator == 0 ? 0 : numerator / Math.sqrt(denominator); // Возвращаем рейтинг похожести
+    }
+
+    private double calculateMetadataSimilarity(ProductDTO product1, ProductDTO product2) {
+        if (product1.getCharacteristic()!=null && product2.getCharacteristic()!= null) {
+            // Пример: считаем схожесть по характеристикам
+            Set<String> characteristic_1 = new HashSet<>(product1.getCharacteristic());
+            Set<String> characteristic_2 = new HashSet<>(product2.getCharacteristic());
+            Set<String> intersection = new HashSet<>(characteristic_1);
+            intersection.retainAll(characteristic_2);
+            double similarity = (double) intersection.size() / Math.max(characteristic_1.size(), characteristic_2.size());
+            // Возвращаем 0.0, если схожесть равна 0, чтобы пропустить этот товар
+            return similarity > 0 ? similarity : 0.0;
+        } else {
+            return 0.0;
+        }
     }
 
     /**
@@ -287,8 +321,8 @@ public class RecommendationService {
                 .max()
                 .orElse(1.0);
 
-        double newMin = 0.1;
-        double newMax = 9.9;
+        double newMin = 1;
+        double newMax = 10;
 
         return recommendations.stream().map(recommendation -> {
             double normalizedRating = newMin + ((recommendation.getRating() - minRating) * (newMax - newMin)) / (maxRating - minRating);

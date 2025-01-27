@@ -14,6 +14,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Класс Product представляет собой сущность, описывающую товар в системе.
@@ -70,6 +71,13 @@ public class Product {
     @Column(nullable = false)
     private Double popularity;
 
+    /**
+     * Характеристики товара.
+     */
+    @ElementCollection
+    @CollectionTable(name = "product_characteristics", joinColumns = @JoinColumn(name = "product_id"))
+    @Column(name = "characteristic")
+    private List<String> characteristics;
     /**
      * Категория товара. Отношение многие к одному с сущностью Category.
      * Аннотация @ManyToOne указывает на отношение многие к одному.
@@ -132,12 +140,16 @@ public class Product {
      * @param category       Категория товара.
      * @param imagePath      Путь к изображению товара.
      */
-    public Product(String name, String description, BigDecimal price, int stockQuantity, Category category, String imagePath) {
+    public Product(String name, String description, BigDecimal price, int stockQuantity, Category category, List<String> characteristic ,String imagePath) {
         this.name = name;
         this.description = description;
         this.price = price;
         this.stockQuantity = stockQuantity;
         this.category = category;
+        this.characteristics = characteristic;
         this.imagePath = imagePath;
     }
+
+
+
 }

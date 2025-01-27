@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import ru.alexds.ccoshop.entity.Product;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Класс ProductDTO представляет собой DTO (Data Transfer Object), используемый для передачи данных о продукте между слоями приложения.
@@ -54,6 +55,7 @@ public class ProductDTO {
      */
     private double popularity;
 
+    private List<String> characteristic;
     /**
      * Идентификатор категории продукта.
      * Если нужно передать информацию о категории.
@@ -87,6 +89,7 @@ public class ProductDTO {
         this.price = product.getPrice();
         this.stockQuantity = product.getStockQuantity();
         this.popularity = product.getPopularity();
+        this.characteristic = product.getCharacteristics();
         this.categoryId = product.getCategory() != null ? product.getCategory().getId() : null;
     }
 }
