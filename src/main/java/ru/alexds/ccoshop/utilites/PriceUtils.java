@@ -3,14 +3,21 @@
  */
 package ru.alexds.ccoshop.utilites;
 
+import org.springframework.stereotype.Component;
+import ru.alexds.ccoshop.dto.OrderItemDTO;
+import ru.alexds.ccoshop.entity.OrderItem;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Класс PriceUtils предоставляет набор статических методов для сравнения ценовых значений типа BigDecimal с значениями типа Double.
  * Эти методы позволяют выполнять различные операции сравнения, такие как больше, меньше, равно и другие, с учетом точности и масштаба.
  * Все методы работают с объектами BigDecimal и значениями типа Double, что делает их универсальными для использования в различных частях приложения.
  */
+@Component
 public class PriceUtils {
 
 
@@ -81,4 +88,6 @@ public class PriceUtils {
         return value1.setScale(scale, RoundingMode.HALF_UP)
                 .equals(BigDecimal.valueOf(value2).setScale(scale, RoundingMode.HALF_UP));
     }
+
+
 }

@@ -49,13 +49,13 @@ public class RecommendationController {
             @Parameter(description = "Количество рекомендаций")
             @RequestParam(defaultValue = "5") @Min(1) int numRecommendations
     ) {
-        log.debug("Request to get user-based recommendations for user ID: {}", userId);
+        log.debug("Запрос на получение пользовательских рекомендаций для пользователя ID: {}", userId);
         try {
             List<RecommendationDTO> recommendations =
                     recommendationService.getUserBasedRecommendations(userId, numRecommendations);
             return ResponseEntity.ok(recommendations);
         } catch (TasteException e) {
-            log.error("Error getting user-based recommendations for user {}: {}", userId, e.getMessage());
+            log.error("Ошибка получения пользовательских рекомендаций для пользователя. {}: {}", userId, e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }
@@ -74,15 +74,15 @@ public class RecommendationController {
             @Parameter(description = "ID товара", required = true)
             @PathVariable @Min(1) Long itemId,
             @Parameter(description = "Количество рекомендаций")
-            @RequestParam(defaultValue = "3") @Min(1) int numRecommendations
+            @RequestParam(defaultValue = "5") @Min(1) int numRecommendations
     ) {
-        log.debug("Request to get item-based recommendations for item ID: {}", itemId);
+        log.debug("Запросить рекомендации по товару ID: {}", itemId);
         try {
             List<RecommendationDTO> recommendations =
                     recommendationService.getItemBasedRecommendations(itemId, numRecommendations);
             return ResponseEntity.ok(recommendations);
         } catch (TasteException e) {
-            log.error("Error getting item-based recommendations for item {}: {}", itemId, e.getMessage());
+            log.error("Ошибка получения рекомендаций на основе элементов для элемента {}: {}", itemId, e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }
@@ -100,12 +100,12 @@ public class RecommendationController {
             @Parameter(description = "ID пользователя", required = true)
             @PathVariable @Min(1) Long userId
     ) {
-        log.debug("Request to get ART-based recommendations for user ID: {}", userId);
+        log.debug("Запрос на получение рекомендаций на основе искусства для пользователя ID: {}", userId);
         try {
             List<RecommendationDTO> recommendations = recommendationService.getARTRecommendations(userId);
             return ResponseEntity.ok(recommendations);
         } catch (Exception e) {
-            log.error("Error getting ART-based recommendations for user {}: {}", userId, e.getMessage());
+            log.error("Eошибка при получении рекомендаций на основе ART для пользователя {}: {}", userId, e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }
@@ -116,7 +116,7 @@ public class RecommendationController {
      * @param userId         Идентификатор пользователя, для которого необходимо сформировать рекомендации
      * @param numRecommendations Количество рекомендаций для возврата
      * @return HTTP-ответ со списком рекомендаций в формате DTO и статусом 200 (OK)
-     * @throws Exception если произошла ошибка при вычислении рекомендаций
+     * @throws  Exception если произошла ошибка при вычислении рекомендаций
      */
     @Operation(summary = "Получить гибридные рекомендации")
     @GetMapping("/hybrid/{userId}")
@@ -124,7 +124,7 @@ public class RecommendationController {
             @PathVariable @Min(1) Long userId,
             @RequestParam(defaultValue = "3") @Min(1) int numRecommendations
     ) {
-        log.debug("Request to get hybrid recommendations for user ID: {}", userId);
+        log.debug("Запросить гибридные рекомендации для пользователя ID: {}", userId);
         try {
             // Получаем User-Based рекомендации
             List<RecommendationDTO> userBased = recommendationService.getUserBasedRecommendations(userId, numRecommendations);
@@ -134,7 +134,7 @@ public class RecommendationController {
             List<RecommendationDTO> combinedRecommendations = recommendationService.mergeRecommendations(userBased, artBased, numRecommendations);
             return ResponseEntity.ok(combinedRecommendations);
         } catch (Exception e) {
-            log.error("Error getting hybrid recommendations for user {}: {}", userId, e.getMessage());
+            log.error("Ошибка получения гибридных рекомендаций для пользователя. {}: {}", userId, e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }
@@ -161,6 +161,6 @@ public class RecommendationController {
     @GetMapping("/ping")
     public ResponseEntity<String> ping() {
         log.debug("Ping request received");
-        return ResponseEntity.ok("Recommendation API is working!");
+        return ResponseEntity.ok("API сервис рекомендаций работает!");
     }
 }

@@ -98,11 +98,26 @@ public class OrderDTO {
     private OrderItemDTO convertToDTO(OrderItem orderItem) {
         return OrderItemDTO.builder()
                 .id(orderItem.getId())
+                .orderId(orderItem.getOrder().getId())
                 .productId(orderItem.getProduct().getId())
                 .productName(orderItem.getProduct().getName())
                 .quantity(orderItem.getQuantity())
                 .price(orderItem.getPrice())
+                .totalPrice(calculateTotalPrice(orderItem))
+
                 .build();
+    }
+
+    /**
+     * Метод для вычисления общей стоимости позиции в заказе.
+     *
+     * @return Общая стоимость позиции в заказе, рассчитанная как произведение количества и цены за единицу товара.
+     */
+    private BigDecimal calculateTotalPrice(OrderItem orderItem) {
+        if (orderItem.getPrice() != null && orderItem.getQuantity() != null) {
+            return orderItem.getPrice().multiply(BigDecimal.valueOf(orderItem.getQuantity()));
+        }
+        return BigDecimal.ZERO;
     }
 }
 

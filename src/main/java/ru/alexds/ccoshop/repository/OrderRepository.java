@@ -118,4 +118,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      * @return Список всех заказов пользователя с указанным статусом.
      */
     List<Order> findByUserIdAndStatus(Long userId, Status status);
+
+    long countByUserIdAndStatus(Long userId, Status completed);
 }

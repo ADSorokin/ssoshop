@@ -6,7 +6,9 @@ import org.springframework.stereotype.Service;
 import ru.alexds.ccoshop.dto.OrderItemDTO;
 import ru.alexds.ccoshop.entity.OrderItem;
 import ru.alexds.ccoshop.repository.OrderItemRepository;
+import ru.alexds.ccoshop.utilites.PriceUtils;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,7 +21,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderItemService {
     private final OrderItemRepository orderItemRepository; // Репозиторий для работы с элементами заказа
-
+private final PriceUtils priceUtils;
     /**
      * Получает все элементы заказа по идентификатору заказа.
      *
@@ -27,14 +29,14 @@ public class OrderItemService {
      * @return Список DTO элементов заказа
      */
     public List<OrderItemDTO> getOrderItemsByOrderId(Long orderId) {
-        log.debug("Request to get order items by order ID: {}", orderId);
+        log.debug("Запрос на получение позиций заказа по заказу ID: {}", orderId);
 
         // Получаем все элементы заказа из репозитория по идентификатору заказа
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
 
         // Если нет элементов заказа, возвращаем пустой список
         if (items.isEmpty()) {
-            log.warn("No order items found for order ID: {}", orderId);
+            log.warn("Товары для заказа не найдены ID: {}", orderId);
             return List.of(); // Возвращаем пустой список, если нет элементов заказа
         }
 
@@ -43,7 +45,7 @@ public class OrderItemService {
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
 
-        log.info("Successfully retrieved {} order items for order ID: {}", orderItemDTOs.size(), orderId);
+        log.info("Успешно получено {} позиций заказа по ID: {}", orderItemDTOs.size(), orderId);
         return orderItemDTOs;
     }
 
@@ -59,13 +61,30 @@ public class OrderItemService {
         // Создаем DTO объект на основе данных элемента заказа
         OrderItemDTO dto = OrderItemDTO.builder()
                 .id(item.getId())
+                .orderId(item.getOrder().getId())
                 .productId(item.getProduct().getId())
                 .productName(item.getProduct().getName())
                 .quantity(item.getQuantity())
                 .price(item.getPrice())
+                .totalPrice(calculateTotalPrice(item))
                 .build();
 
-        log.debug("Converted order item with ID: {} to DTO: {}", item.getId(), dto);
+        log.debug("Преобразованный элемент заказа с ID: {} в DTO: {}", item.getId(), dto);
         return dto;
+
+
+
+    }
+
+    /**
+     * Метод для вычисления общей стоимости позиции в заказе.
+     *
+     * @return Общая стоимость позиции в заказе, рассчитанная как произведение количества и цены за единицу товара.
+     */
+    private BigDecimal calculateTotalPrice(OrderItem orderItem) {
+        if (orderItem.getPrice() != null && orderItem.getQuantity() != null) {
+            return orderItem.getPrice().multiply(BigDecimal.valueOf(orderItem.getQuantity()));
+        }
+        return BigDecimal.ZERO;
     }
 }

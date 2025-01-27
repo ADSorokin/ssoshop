@@ -16,6 +16,7 @@ import ru.alexds.ccoshop.service.OrderItemService;
 import ru.alexds.ccoshop.service.OrderService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -38,7 +39,7 @@ public class OrderController {
      *
      * @param userId Идентификатор пользователя, чья корзина используется для создания заказа
      * @return HTTP-ответ с созданным заказом в формате DTO и статусом 200 (OK)
-     * @throws Exception если произошла ошибка при создании заказа
+     * @throws EntityNotFoundException если произошла ошибка при создании заказа
      */
     @Operation(summary = "Создать заказ на основе корзины пользователя")
     @PostMapping("/{userId}/create")
@@ -146,6 +147,26 @@ public class OrderController {
         orderService.deleteOrder(orderId);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Получает статистику заказов пользователя.
+     *
+     * @param userId Идентификатор пользователя, для которого необходимо получить статистику
+     * @return ResponseEntity с картой статистических данных по заказам пользователя
+     */
+    @Operation(summary = "Статистика заказов пользователя")
+    @GetMapping("/{userId}/order-statistics")
+    public ResponseEntity<Map<String, Object>> getUserOrderStatistics(@PathVariable Long userId) {
+        log.debug("REST запрос на получение статистики заказов для пользователя ID: {}", userId);
+        try {
+            Map<String, Object> statistics = orderService.getUserOrderStatistics(userId); // Вызов сервиса
+            return ResponseEntity.ok(statistics);
+        } catch (RuntimeException e) {
+            log.error("Не удалось получить статистику заказов для пользователя ID {}: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+    }
+
 
     /**
      * Получает все элементы заказа по идентификатору заказа.

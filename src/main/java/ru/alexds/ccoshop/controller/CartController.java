@@ -91,10 +91,7 @@ public class CartController {
     @PutMapping("/{cartItemId}")
     public ResponseEntity<CartItemDTO> updateCartItem(@PathVariable Long cartItemId, @Valid @RequestBody CartItemDTO cartItemDTO) {
         log.debug("Request to update cart item ID: {} with data: {}", cartItemId, cartItemDTO);
-        if (!cartItemId.equals(cartItemDTO.getId())) {
-            log.error("Path variable cartItemId does not match the ID in the request body");
-            return ResponseEntity.badRequest().build();
-        }
+        cartItemDTO.setId(cartItemId);
         CartItemDTO updatedItem = cartService.updateCartItem(cartItemDTO);
         return ResponseEntity.ok(updatedItem);
     }

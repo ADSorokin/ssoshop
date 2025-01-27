@@ -127,7 +127,7 @@ public class OrderService {
         log.debug("Запрос на обновление статуса заказа с помощью ID: {} to {}", orderId, status);
 
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found")); // Проверяем наличие заказа
+                .orElseThrow(() -> new RuntimeException("Заказ не найден")); // Проверяем наличие заказа
 
         order.setStatus(status); // Обновляем статус заказа
         Order updatedOrder = orderRepository.save(order); // Сохраняем изменения в базе данных
@@ -151,7 +151,7 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Заказ не найден")); // Проверяем наличие заказа
 
         if (Status.COMPLETED.equals(order.getStatus())) {
-            throw new RuntimeException("Cannot cancel completed order"); // Проверяем возможность отмены заказа
+            throw new RuntimeException("Невозможно отменить выполненный заказ"); // Проверяем возможность отмены заказа
         }
 
         // Возвращаем товары на склад для каждого элемента заказа
@@ -164,7 +164,7 @@ public class OrderService {
         order.setStatus(Status.CANCELLED); // Устанавливаем статус заказа как отмененный
         Order savedOrder = orderRepository.save(order); // Сохраняем обновленный заказ в базе данных
 
-        log.info("Successfully cancelled order with ID: {}", orderId);
+        log.info("Заказ успешно отменен с помощью ID: {}", orderId);
         return convertToDTO(savedOrder); // Преобразуем отмененный заказ в DTO и возвращаем
     }
 
@@ -250,7 +250,7 @@ public class OrderService {
      * @return Пагинированный список всех заказов в формате DTO
      */
     public Page<OrderDTO> getAllOrders(Pageable pageable) {
-        log.debug("Request to get all orders with pagination");
+        log.debug("Запрос на получение всех заказов с пагинацией страниц");
 
         Page<Order> ordersPage = orderRepository.findAll(pageable); // Получаем страницу заказов
         return ordersPage.map(OrderDTO::new); // Преобразуем каждый заказ в OrderDTO
@@ -264,7 +264,7 @@ public class OrderService {
      * @return Список заказов в указанном диапазоне в формате DTO
      */
     public List<OrderDTO> getOrdersByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
-        log.debug("Request to get orders between dates: {} and {}", startDate, endDate);
+        log.debug("Запрос на получение заказов между датами: {} and {}", startDate, endDate);
 
         return orderRepository.findByOrderDateBetween(startDate, endDate).stream()
                 .map(OrderDTO::new) // Преобразуем заказы в OrderDTO
@@ -336,39 +336,39 @@ public class OrderService {
         BigDecimal totalSpent = calculateUserTotalSpent(userId);
         return totalSpent.divide(BigDecimal.valueOf(completedOrders.size()), 2, RoundingMode.HALF_UP); // Вычисляем среднее значение
     }
-//
-//    /**
-//     * Получает статистику заказов пользователя.
-//     *
-//     * @param userId Идентификатор пользователя, для которого необходимо получить статистику
-//     * @return Карта со статистическими данными по заказам пользователя
-//     */
-//    public Map<String, Object> getUserOrderStatistics(Long userId) {
-//        log.debug("Request to get order statistics for user ID: {}", userId);
-//
-//        Map<String, Object> statistics = new HashMap<>();
-//        List<Order> completedOrders = orderRepository.findByUserIdAndStatus(userId, Status.COMPLETED);
-//        BigDecimal totalSpent = calculateUserTotalSpent(userId);
-//        BigDecimal averageOrderAmount = calculateUserAverageOrderAmount(userId);
-//        long totalOrders = orderRepository.countByUserIdAndStatus(userId, Status.COMPLETED);
-//
-//        Optional<BigDecimal> maxOrderAmount = completedOrders.stream()
-//                .map(Order::getTotalPrice)
-//                .max(BigDecimal::compareTo);
-//
-//        Optional<BigDecimal> minOrderAmount = completedOrders.stream()
-//                .map(Order::getTotalPrice)
-//                .min(BigDecimal::compareTo);
-//
-//        statistics.put("totalSpent", totalSpent);
-//        statistics.put("averageOrderAmount", averageOrderAmount);
-//        statistics.put("totalOrders", totalOrders);
-//        statistics.put("maxOrderAmount", maxOrderAmount.orElse(BigDecimal.ZERO));
-//        statistics.put("minOrderAmount", minOrderAmount.orElse(BigDecimal.ZERO));
-//
-//        log.info("Retrieved order statistics for user ID: {}", userId);
-//        return statistics;
-//    }
+
+    /**
+     * Получает статистику заказов пользователя.
+     *
+     * @param userId Идентификатор пользователя, для которого необходимо получить статистику
+     * @return Карта со статистическими данными по заказам пользователя
+     */
+    public Map<String, Object> getUserOrderStatistics(Long userId) {
+        log.debug("Request to get order statistics for user ID: {}", userId);
+
+        Map<String, Object> statistics = new HashMap<>();
+        List<Order> completedOrders = orderRepository.findByUserIdAndStatus(userId, Status.COMPLETED);
+        BigDecimal totalSpent = calculateUserTotalSpent(userId);
+        BigDecimal averageOrderAmount = calculateUserAverageOrderAmount(userId);
+        long totalOrders = orderRepository.countByUserIdAndStatus(userId, Status.COMPLETED);
+
+        Optional<BigDecimal> maxOrderAmount = completedOrders.stream()
+                .map(Order::getTotalPrice)
+                .max(BigDecimal::compareTo);
+
+        Optional<BigDecimal> minOrderAmount = completedOrders.stream()
+                .map(Order::getTotalPrice)
+                .min(BigDecimal::compareTo);
+
+        statistics.put("totalSpent", totalSpent);
+        statistics.put("averageOrderAmount", averageOrderAmount);
+        statistics.put("totalOrders", totalOrders);
+        statistics.put("maxOrderAmount", maxOrderAmount.orElse(BigDecimal.ZERO));
+        statistics.put("minOrderAmount", minOrderAmount.orElse(BigDecimal.ZERO));
+
+        log.info("Retrieved order statistics for user ID: {}", userId);
+        return statistics;
+    }
 
     /**
      * Получает список заказов пользователя, сумма которых больше указанной.
@@ -499,6 +499,7 @@ public class OrderService {
                         item.getProduct().getName(),
                         item.getQuantity(),
                         item.getPrice()
+
                 ))
                 .collect(Collectors.toList());
 
