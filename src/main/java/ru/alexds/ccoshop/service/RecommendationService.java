@@ -61,7 +61,7 @@ public class RecommendationService {
      */
     @PostConstruct
     public void init() throws TasteException {
-        RecommendationService.log.debug("Initializing RecommendationService");
+        RecommendationService.log.debug("Инициализация рекомендаций");
 
         // Инициализация Mahout DataModel через подключение к базе данных
         dataModel = new MySQLJDBCDataModel(dataSource, "ratings", "user_id", "item_id", "rating", "timestamp");
@@ -78,7 +78,7 @@ public class RecommendationService {
                 RecommendationService.log.info("Number of items: {}", rs.getInt("item_count"));
             }
         } catch (SQLException e) {
-            RecommendationService.log.error("Error fetching data from database", e);
+            RecommendationService.log.error("Ошибка извлечения данных из базы данных", e);
         }
     }
 
