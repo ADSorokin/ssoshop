@@ -92,4 +92,12 @@ public class ProductDTO {
         this.characteristic = product.getCharacteristics();
         this.categoryId = product.getCategory() != null ? product.getCategory().getId() : null;
     }
+
+
+
+    public ProductDTO(Long id, String name, double popularity) {
+        this.id = id;
+        this.name = name;
+        this.popularity = popularity;
+    }
 }

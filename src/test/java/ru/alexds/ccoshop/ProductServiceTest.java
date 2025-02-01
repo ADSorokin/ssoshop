@@ -132,7 +132,7 @@ public class ProductServiceTest {
         ProductDTO updatedProduct = productService.updateProduct(1L, testProductDTO);
 
         assertEquals("UpdatedProductName", updatedProduct.getName());
-        verify(productRepository, times(1)).save(any(Product.class));
+         verify(productRepository, times(1)).save(any(Product.class));
         verify(categoryRepository, times(1)).findById(1L);
     }
 

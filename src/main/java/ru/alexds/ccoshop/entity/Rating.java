@@ -58,4 +58,11 @@ public class Rating {
      */
     @Column(name = "timestamp")
     private Long timestamp;
+
+
+    public Rating(Long userId, Long itemId, Double rating) {
+        this.userId = userId;
+        this.itemId = itemId;
+        this.rating = rating;
+    }
 }
